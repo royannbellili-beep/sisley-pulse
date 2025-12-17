@@ -256,7 +256,7 @@ export default function App() {
           <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
             <Briefcase className="text-purple-600" size={32} />
           </div>
-          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 leading-tight text-center">Collaboration Startup ?</h2>
+          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 leading-tight text-center">Avez-vous collaboré avec une Startup ?</h2>
           <p className="text-gray-400 text-xs px-2 text-center">Au cours des 6 derniers mois.</p>
         </div>
 

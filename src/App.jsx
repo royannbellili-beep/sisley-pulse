@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
-import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
@@ -76,7 +76,7 @@ export default function App() {
   const [currentStartupInput, setCurrentStartupInput] = useState('');
   
   const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
-  const [connectionStatus, setConnectionStatus] = useState('idle'); // idle, loading, success, error
+  // const [connectionStatus, setConnectionStatus] = useState('idle'); // Retiré car plus affiché
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -100,7 +100,7 @@ export default function App() {
   const fetchStartups = async () => {
     if (!STARTUPS_API_URL) return;
     
-    setConnectionStatus('loading');
+    // setConnectionStatus('loading');
     try {
         const res = await fetch(STARTUPS_API_URL, {
             method: 'GET',
@@ -131,17 +131,17 @@ export default function App() {
             
             if (names.length > 0) {
                 setStartupList(names);
-                setConnectionStatus('success');
+                // setConnectionStatus('success');
             } else {
                 // Liste vide reçue
-                setConnectionStatus('error'); 
+                // setConnectionStatus('error'); 
             }
         } else {
             throw new Error("Format invalide");
         }
     } catch (err) {
         console.error("Erreur Make:", err);
-        setConnectionStatus('error'); // Restera sur la liste statique
+        // setConnectionStatus('error'); // Restera sur la liste statique
     }
   };
 
@@ -313,15 +313,8 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6" ref={dropdownRef}>
-            <div className="flex justify-between items-center mb-2">
+            <div className="mb-2">
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label>
-                
-                {/* INDICATEUR DE CONNEXION */}
-                <div className="flex items-center gap-2" onClick={fetchStartups} title="Cliquer pour réessayer">
-                    {connectionStatus === 'loading' && <span className="text-[10px] text-orange-500 font-bold flex items-center gap-1"><Loader2 size={10} className="animate-spin"/> CONNEXION...</span>}
-                    {connectionStatus === 'success' && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Wifi size={10}/> LISTE NOTION</span>}
-                    {connectionStatus === 'error' && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><WifiOff size={10}/> LISTE SECOURS</span>}
-                </div>
             </div>
             <div className="flex gap-2 relative">
               <div className="relative flex-1">

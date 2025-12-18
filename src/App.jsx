@@ -268,7 +268,7 @@ export default function App() {
         <div className="absolute top-6 left-0 right-0 text-center"><span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Semestre 2 - 2025</span></div>
         <div className={`relative w-full aspect-[4/5] max-h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center p-6 transition-all duration-500 transform ${swipeDirection === 'left' ? '-translate-x-full -rotate-12 opacity-0' : ''} ${swipeDirection === 'right' ? 'translate-x-full rotate-12 opacity-0' : ''}`}>
           <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6"><Briefcase className="text-purple-600" size={32} /></div>
-          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 text-center">Collaboration Startup ?</h2>
+          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 text-center">Avez-vous collaboré avec des Startups ?</h2>
           <p className="text-gray-400 text-xs px-2 text-center">Au cours des 6 derniers mois.</p>
         </div>
         <div className="flex items-center gap-8 mt-10">

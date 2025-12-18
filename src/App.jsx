@@ -177,7 +177,7 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE EN BOUCLE (Fixe le problème Notion) ---
+  // --- SAUVEGARDE SÉQUENTIELLE (Garantit chaque ligne dans Notion) ---
   const saveEntry = async (collaborated, startupsList) => {
     setIsSubmitting(true);
     if (!authUser) return;
@@ -196,25 +196,30 @@ export default function App() {
       // 1. Sauvegarde Firebase (En un bloc)
       await addDoc(collection(db, COLLECTION_NAME), firebasePayload);
 
-      // 2. Envoi vers Make (En boucle pour créer N lignes)
+      // 2. Envoi vers Make (Séquentiel pour garantir la création de toutes les lignes)
       if (NOTION_WEBHOOK_URL) {
           if (collaborated && startupsList.length > 0) {
-              const requests = startupsList.map(startup => {
-                  // On crée un payload unique pour CHAQUE startup
+              // On utilise une boucle for...of pour envoyer les requêtes l'une après l'autre
+              // Cela évite que Make ne rate des requêtes simultanées
+              for (const startup of startupsList) {
                   const singlePayload = {
                       ...firebasePayload,
                       startups: [startup], // Make verra une liste de 1 élément
-                      name: startup.name, // Raccourcis pour Make (facilite le mapping)
+                      name: startup.name, // Champ plat pour mapping facile
                       sentiment: startup.sentiment,
                       comment: startup.comment
                   };
-                  return fetch(NOTION_WEBHOOK_URL, {
+                  
+                  // On attend que la requête soit partie avant de passer à la suivante
+                  await fetch(NOTION_WEBHOOK_URL, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(singlePayload)
                   });
-              });
-              await Promise.all(requests); // Attend que tout soit envoyé
+                  
+                  // Petite pause de sécurité (optionnel mais prudent)
+                  await new Promise(r => setTimeout(r, 100));
+              }
           } else {
               // Cas NON : Un seul envoi
               fetch(NOTION_WEBHOOK_URL, {
@@ -304,6 +309,7 @@ export default function App() {
                     className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
                     placeholder="Rechercher..." 
                 />
+                {/* DROPDOWN AVEC FILTRAGE INSTANTANÉ */}
                 {showDropdown && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
                     {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}

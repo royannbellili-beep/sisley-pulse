@@ -15,15 +15,14 @@ const exportConfig = {
     appId: "1:568190753552:web:2473abdfb47965689be395"
   };
 
-// URL Webhook Lecture (RESTITUÉE)
-const STARTUPS_API_URL = "https://hook.eu2.make.com/dadbhexrl4j37yxbsa1nfvm1bq46j787"; 
-
-// URL Webhook Écriture
+// URL Webhook Écriture (On garde uniquement celui qui marche pour sauvegarder)
 const NOTION_WEBHOOK_URL = "https://hook.eu2.make.com/kcv8aaztdoaapiwwhwjfovgl4tc52mvo"; 
 
 const ADMIN_PASSWORD = "SISLEY2025"; 
 
-// Liste de secours
+// --- 2. LISTE STATIQUE DES STARTUPS (AUTO-COMPLÉTION) ---
+// Ajoutez ici toutes les startups de votre écosystème.
+// La liste s'affichera au fur et à mesure de la saisie.
 const STATIC_STARTUPS = [
   "HapticMedia", 
   "Woop", 
@@ -34,7 +33,19 @@ const STATIC_STARTUPS = [
   "OpenAI", 
   "Yuka", 
   "Algolia", 
-  "Maison Sisley"
+  "Maison Sisley",
+  "Ecklo",
+  "Metagora",
+  "Dialog",
+  "Getinside",
+  "Azoma",
+  "Albatrross.ai",
+  "BioHive",
+  "HABS.ai",
+  "Aive",
+  "Laiola",
+  "Fairly Made",
+  "Skeepers"
 ];
 
 const SENTIMENTS = ['🔥', '🚧', '❄️'];
@@ -85,8 +96,8 @@ export default function App() {
   const [selectedStartups, setSelectedStartups] = useState([]);
   const [currentStartupInput, setCurrentStartupInput] = useState('');
   
-  const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
-  // const [connectionStatus, setConnectionStatus] = useState('idle');
+  // Utilisation directe de la liste statique
+  const [startupList] = useState(STATIC_STARTUPS); 
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -104,52 +115,6 @@ export default function App() {
       script.src = "https://cdn.tailwindcss.com";
       document.head.appendChild(script);
     }
-  }, []);
-
-  // --- CHARGEMENT ROBUSTE (Make) ---
-  const fetchStartups = async () => {
-    if (!STARTUPS_API_URL) return;
-    
-    // setConnectionStatus('loading');
-    try {
-        // MODIFICATION ICI : Appel simple sans headers pour éviter le preflight CORS strict
-        const res = await fetch(STARTUPS_API_URL);
-        
-        const text = await res.text();
-        
-        let data = null;
-        try { 
-            data = JSON.parse(text); 
-        } catch (e) {
-            // Tentative de réparation si Make renvoie des simples quotes
-            try { data = JSON.parse(text.replace(/'/g, '"')); } catch(e2) {}
-        }
-
-        if (data && (Array.isArray(data) || (typeof data === 'object'))) {
-            let items = [];
-            if (Array.isArray(data)) items = data;
-            else if (data.body && Array.isArray(data.body)) items = data.body;
-            else items = Object.values(data);
-            
-            // Extraction des noms
-            const names = items.map(item => {
-                if (typeof item === 'string') return item;
-                return item.name || item.Name || item.title || item.Title || item.properties?.Name?.title?.[0]?.plain_text || null;
-            }).filter(n => n);
-            
-            if (names.length > 0) {
-                setStartupList(names);
-                // setConnectionStatus('success');
-            }
-        }
-    } catch (err) {
-        console.error("Erreur Make (Fallback actif):", err);
-        // setConnectionStatus('error');
-    }
-  };
-
-  useEffect(() => {
-    fetchStartups();
   }, []);
 
   // Dropdown close
@@ -332,6 +297,7 @@ export default function App() {
                     className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
                     placeholder="Rechercher..." 
                 />
+                {/* DROPDOWN AVEC FILTRAGE INSTANTANÉ */}
                 {showDropdown && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
                     {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}
@@ -374,7 +340,7 @@ const ScreenWrapper = ({ children }) => (
   </div>
 );
 
-const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab vFinal</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
+const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab v2.9</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
 const DatabaseView = ({ data, onClose }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); const [password, setPassword] = useState(''); const [error, setError] = useState(false);
   const handleAuth = (e) => { e.preventDefault(); if (password === ADMIN_PASSWORD) { setIsAuthenticated(true); setError(false); } else { setError(true); } };

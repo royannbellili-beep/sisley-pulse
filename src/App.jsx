@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
-import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
@@ -15,7 +15,7 @@ const exportConfig = {
     appId: "1:568190753552:web:2473abdfb47965689be395"
   };
 
-// URL Webhook Lecture
+// URL Webhook Lecture (RESTITUÉE)
 const STARTUPS_API_URL = "https://hook.eu2.make.com/dadbhexrl4j37yxbsa1nfvm1bq46j787"; 
 
 // URL Webhook Écriture
@@ -25,8 +25,18 @@ const ADMIN_PASSWORD = "SISLEY2025";
 
 // Liste de secours
 const STATIC_STARTUPS = [
-  "Ecklo", "Veesual", "Metagora", "Dialog", "Getinside", "Azoma", "Albatrross.ai", "BioHive", "HABS.ai", "Aive"
+  "HapticMedia", 
+  "Woop", 
+  "Contentsquare", 
+  "Veesual", 
+  "Replika", 
+  "Midjourney", 
+  "OpenAI", 
+  "Yuka", 
+  "Algolia", 
+  "Maison Sisley"
 ];
+
 const SENTIMENTS = ['🔥', '🚧', '❄️'];
 
 // --- B. Logique Hybride ---
@@ -76,7 +86,8 @@ export default function App() {
   const [currentStartupInput, setCurrentStartupInput] = useState('');
   
   const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
-  // const [connectionStatus, setConnectionStatus] = useState('idle'); // Retiré car plus affiché
+  // Status de la source de données pour débogage visuel
+  const [dataSource, setDataSource] = useState('static'); // 'static' | 'notion' | 'loading'
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -96,11 +107,11 @@ export default function App() {
     }
   }, []);
 
-  // --- CHARGEMENT ROBUSTE ---
+  // --- CHARGEMENT ROBUSTE (Make) ---
   const fetchStartups = async () => {
     if (!STARTUPS_API_URL) return;
     
-    // setConnectionStatus('loading');
+    setDataSource('loading');
     try {
         const res = await fetch(STARTUPS_API_URL, {
             method: 'GET',
@@ -108,40 +119,51 @@ export default function App() {
         });
         
         const text = await res.text();
-        
+        console.log("Brut Make:", text);
+
         let data = null;
+        let items = [];
+
+        // Essai 1 : Parsing JSON standard
         try { 
             data = JSON.parse(text); 
         } catch (e) {
-            // Tentative de réparation si Make renvoie des simples quotes
+            // Essai 2 : Réparation JSON malformé (simples quotes)
             try { data = JSON.parse(text.replace(/'/g, '"')); } catch(e2) {}
         }
 
-        if (data && (Array.isArray(data) || (typeof data === 'object'))) {
-            let items = [];
+        // Si data est valide (Tableau ou Objet)
+        if (data && (Array.isArray(data) || typeof data === 'object')) {
             if (Array.isArray(data)) items = data;
             else if (data.body && Array.isArray(data.body)) items = data.body;
             else items = Object.values(data);
-            
-            // Extraction des noms
-            const names = items.map(item => {
-                if (typeof item === 'string') return item;
-                return item.name || item.Name || item.title || item.Title || item.properties?.Name?.title?.[0]?.plain_text || null;
-            }).filter(n => n);
-            
-            if (names.length > 0) {
-                setStartupList(names);
-                // setConnectionStatus('success');
-            } else {
-                // Liste vide reçue
-                // setConnectionStatus('error'); 
-            }
-        } else {
-            throw new Error("Format invalide");
+        } 
+        // Essai 3 : Si ce n'est pas du JSON, c'est peut-être une liste séparée par des virgules (CSV simple)
+        else if (typeof text === 'string' && text.includes(',')) {
+            items = text.split(',').map(s => s.trim());
         }
+
+        // Nettoyage final des noms
+        const names = items.map(item => {
+            if (typeof item === 'string') return item;
+            // Gestion de tous les formats Notion possibles
+            return item.name || item.Name || item.title || item.Title || 
+                   item.properties?.Name?.title?.[0]?.plain_text || 
+                   item.properties?.Nom?.title?.[0]?.plain_text || null;
+        }).filter(n => n && n !== "Inconnu");
+        
+        if (names.length > 0) {
+            setStartupList(names);
+            setDataSource('notion');
+            console.log("✅ Liste chargée:", names);
+        } else {
+            console.warn("⚠️ Liste vide reçue, fallback sur statique");
+            setDataSource('static');
+        }
+
     } catch (err) {
-        console.error("Erreur Make:", err);
-        // setConnectionStatus('error'); // Restera sur la liste statique
+        console.error("❌ Erreur Make:", err);
+        setDataSource('static');
     }
   };
 
@@ -243,6 +265,7 @@ export default function App() {
     };
     try {
       await addDoc(collection(db, COLLECTION_NAME), payload);
+      // Appel du Webhook Make (Écriture)
       if (NOTION_WEBHOOK_URL) {
         fetch(NOTION_WEBHOOK_URL, {
           method: 'POST',
@@ -257,6 +280,7 @@ export default function App() {
 
   const resetApp = () => { setUser({ firstName: '', lastName: '' }); setSelectedStartups([]); setStep('login'); };
 
+  // --- FILTRAGE POUR DROPDOWN (Recherche instantanée) ---
   const filteredStartups = startupList.filter(s => 
     s.toLowerCase().includes(currentStartupInput.toLowerCase()) && !selectedStartups.some(sel => sel.name === s)
   );
@@ -313,14 +337,29 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6" ref={dropdownRef}>
-            <div className="mb-2">
+            <div className="flex justify-between items-center mb-2">
                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label>
+                
+                {/* STATUS BADGE */}
+                <div className="flex items-center gap-2" onClick={fetchStartups} title="Recharger">
+                    {dataSource === 'loading' && <span className="text-[10px] text-orange-500 font-bold flex items-center gap-1"><Loader2 size={10} className="animate-spin"/>...</span>}
+                    {dataSource === 'notion' && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><Wifi size={10}/> Notion</span>}
+                    {dataSource === 'static' && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><WifiOff size={10}/> Secours</span>}
+                </div>
             </div>
             <div className="flex gap-2 relative">
               <div className="relative flex-1">
-                <input type="text" value={currentStartupInput} onChange={(e) => { setCurrentStartupInput(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} onKeyDown={(e) => e.key === 'Enter' && addStartup()} className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" placeholder="Rechercher..." />
+                <input 
+                    type="text" 
+                    value={currentStartupInput} 
+                    onChange={(e) => { setCurrentStartupInput(e.target.value); setShowDropdown(true); }} 
+                    onFocus={() => setShowDropdown(true)} 
+                    onKeyDown={(e) => e.key === 'Enter' && addStartup()} 
+                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
+                    placeholder="Rechercher..." 
+                />
                 {showDropdown && (
-                  <ul className="absolute z-10 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
+                  <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
                     {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}
                   </ul>
                 )}
@@ -361,7 +400,7 @@ const ScreenWrapper = ({ children }) => (
   </div>
 );
 
-const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab v2.7</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
+const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab vFinal</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
 const DatabaseView = ({ data, onClose }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); const [password, setPassword] = useState(''); const [error, setError] = useState(false);
   const handleAuth = (e) => { e.preventDefault(); if (password === ADMIN_PASSWORD) { setIsAuthenticated(true); setError(false); } else { setError(true); } };

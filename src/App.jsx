@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+// Importation des services Firebase
 import { initializeApp } from 'firebase/app';
+// Note: Pour une app publique simple, on utilise l'auth anonyme
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
-import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+// Importation des icônes Lucide
+import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare, ChevronDown } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
+// A. Configuration FIREBASE (PROD)
 const exportConfig = {
     apiKey: "AIzaSyBg9b3tYGtjVkKsyX4sNaEOt4R__SJ6Lug",
     authDomain: "sisley-pulse.firebaseapp.com",
@@ -15,19 +19,19 @@ const exportConfig = {
     appId: "1:568190753552:web:2473abdfb47965689be395"
   };
 
-// URL Webhook Lecture (Désactivé pour utiliser la liste CSV intégrée ci-dessous)
-const STARTUPS_API_URL = ""; 
+// B. Configuration MAKE (LECTURE - Liste des Startups)
+const STARTUPS_API_URL = "https://hook.eu2.make.com/dadbhexrl4j37yxbsa1nfvm1bq46j787"; 
 
-// URL Webhook Écriture (Votre scénario Make qui fonctionne)
+// C. Configuration MAKE (ECRITURE - Sauvegarde des réponses)
 const NOTION_WEBHOOK_URL = "https://hook.eu2.make.com/kcv8aaztdoaapiwwhwjfovgl4tc52mvo"; 
 
 const ADMIN_PASSWORD = "SISLEY2025"; 
 
-// --- 2. LISTE COMPLETE ISSUE DU CSV (200+ Startups) ---
+// --- 2. DONNÉES STATIQUES (Secours) ---
+// Cette liste s'affiche si la connexion Notion échoue
 const STATIC_STARTUPS = [
-  "Datawork", "EnHywhere", "Trivia ", "Opole Panel Wiatrowy", "IDservice", "AXOMEGA-CARE", "COACH FOR EYES", "AR[t] Studio", "Japet", "Stockly", "Gino LegalTech", "Ohz studio", "Excense", "Lucy Mobility ", "HautAI", "Duo J&J", "Lootorium", "MOLD.PARIS", "Valterio", "Rota", "DataThings SA", "KLONA", "Action Positive (marque commercialisée Linka)", "Relicta Srl", "Corecyclage", "RSE Challenge", "GIOZA", "supermonday", "ROI Media", "Woola", "Vox Illud", "Au revoir carbone (RSE Challenge)", "Z#bre", "Fairspace", "NeuralTeks", "My Smart Journey", "Holoffice", "Whoz", "B.mind", "RTCX", "Charlie", "Ava", "Contour (Deleo) ", "iStaging", "Takeoff Xp", "Freschcup", "MaquillAR Studio", "Safecube", "Novelab", "Lucibel", "Artify", "Nawa technologies", "Yxir (Groupe EDF)", "Skiils", "Controlpack", "Asteria", "Tale of Data", "Sycon", "Novecal", "Renature (ex Tannerie Végétale)", "Hapster", "Sootenir", "Circularplace", "PulpoAR", "WE NETWORK", "RHEONIS", "Curebot", "Astora", "Sindup", "Iroony", "Semana", "AdScout.io", "Echo Analytics", "Rierino", "Vaibe", "Rocketium", "Dowino", "Enso", "SenseBioTek", "Loyale", "Hypotenuse AI", "Bounce", "PeakMetrics", "OnFabric", "Marelle Studio", "Scon AI", "Bibak", "Abyssale", "xTool", "Evelab Insight", "Notify", "Agence Les Initiés", "Facelift", "Woorikidsplus", "Muzard", "Center AI", "Aiphrodite", "LOOKALIKE SRL", "My S Life", "Rewake", "Lilaea", "Arxy", "Greenspark", "Yogi", "Storyly", "Celtra", "LiveCrew", "Achille AI", "Gocertify", "Kahoona", "InnAIO", "Kiud", "Talon.One", "The Forecasting Company", "Fairpatterns", "Didask", "Social+", "Azoma", "Oraclase.ai", "Manual.to", "Ask Monk", "Hippolyte.ai", "Bryanthings", "Samplistick", "HABS", "Chitose Matsuri", "Artpoint", "Red Mimicry", "Elora", "Unitee", "Snap Discovery", "Aivar", "Chat3D", "Sharebox. Co.", "Airudi", "Visualsyn (Glinda)", "Xitst", "Mini Green Power", "Understand tech", "Heralbony", "Twinit", "Clésame", "Creatant", "Deepixel (StyleAR)", "Celestory", "Mocli", "Good on you", "Go Ava", "Intuive", "Stern Tech", "Fairly Made", "Causal Foundry", "Marketon", "Made with intent", "Frontnow", "Syncly", "Vizit", "Fero", "Attentive", "Botify", "Alhena", "1440", "Dialog AI", "Crwizard", "Hypothenuse AI", "Vanish Standard", "Dassault Systèmes", "OWI", "Konatus", "Kiosk", "Data4job", "Nectar Social", "Veesual", "Infios", "Glassix", "Tagether", "Secret View", "Aura Vision", "Bria Ai", "DinMo", "Talkable", "Nimble", "Planet Purpose", "Visionairy ", "Monstock", "Trurating", "Eagle Eye", "Axonify", "Paytweak", "Cleed.ai", "Trybu", "Advertima", "Ealyx", "Yofi", "Jukee", "Twini.ai", "Airia", "Fanfare", "Doofinder", "Metreecs", "Voicebox (VBX AI)", "Nedap", "Curated4you", "Retail Reload", "Power.XYZ", "New Black", "Urbyn", "Footprints AI", "Niftmint", "Les Martines", "Pandobac", "WizyVision", "Trajaan", "Idyllic", "Airthings", "French Touch Factory", "Ouidrop", "Edzo", "Unless", "Jeen", "WeNow", "Uneole", "Affluences", "Algo’tech vision", "Qovoltis", "MEAL CANTEEN", "Human innovate", "Digifood", "ProGlove", "Clutch Rayn Production", "SKILLEO", "Popmii", "Carbonable", "Green technologies", "Quobly", "LightStim", "Reddot", "SAMP", "Pochet", "Skilleo", "MYOTHESIS ", "Astreva", "Yaggo", "Reelevant", "CreaKnow", "Canaery", "ANGELIA", "Tim sports ", "Airudit", "XR+", "Picomto", "Bodyguard", "Naked Energy", "MOFFI", "Coxibiz", "Greez", "Zenithpaths", "Vertile", "Lixo", "Retail VR", "Find & Order", "Talentry", "Wats", "Cosmetange", "Clientela", "Fintecture ", "Cesam", "Kataba", "Lucéat", "Les bois", "Stuart", "Aprex", "Ubigreen", "Beemetrix", "Selego", "Lyyti", "5discovery", "Opscidia", "Circularise ", "4InData", "Filament’OR", "Voltyo", "Engagement & Performance (Powerteam)", "Free-visit", "Napta ", "4Gift", "Physioquanta", "Les Nouveaux Géants ", "TKM - Technology Knowledge Metrix", "Bloom media", "Corpoderm", "Flowlity", "OliKrom", "Adrenalead ", "Unaöd", "Bohémienne", "Uptale", "ShareGroop", "MarqVision", "AAMS", "Maia-Be", "Advanced Track & Trace", "CENTILOC", "Skeepers (ex : Toky Woky)", "Zeplug", "KEMIWATT", "Aquaphys", "Ctrl S", "Spinalcom", "Skopai", "Kiosk-it", "Smartback", "Use insider", "HappyTrack", "Neurochain ", "Maison Colette", "Dronotec", "Sourcemap", "Akeen", "Treeseve", "BioHive innovations", "Sweetch Energy", "Ottobock", "All virtual", "Beesk", "Recnorec", "ABTasty (ex Dotaki)", "Kalima Blockchain", "Simbel", "K-process", "Bureau Bien Vu ", "Alterrae", "Mercaux", "Bioxegy", "Yinfy ⇒ Hair analyser & autres recherches", "VIDETICS", "E-VIRTUALITY", "Eclos Production", "Love your waste ", "NextUser", "Adyen", "Pollen AM", "Ergosanté", "Neobrain", "Solvenn ", "Stendo", "ChatLabs", "La vitre ", "Thank you and welcome", "Redflow", "EXO data", "http://4.builders", "Cosmecode", "Bonanza", "IOGA", "INVAIST", "Composia", "VitrumGlass", "Opack (=Le Petit Pack)", "Omi", "Trayvisor ", "Beautigloo", "SCorp-io", "Reetags", "DIAGRAMS Technologies", "Byzance", "Technis", "SolarGaps", "Skoleom", "InnovFast (Move2.digital)", "Jobradio", "Pi électronique ", "Ecofrugal Project SAS", "Tamplo", "Algentech", "PENBOX ", "Brandaudio", "Neoplants", "Goshaba", "Vely Velo ", "Osol", "Elocance", "Sociabble", "Bloom Biorenewables", "Magma Seaweed", "Gimii", "OPEN MIND Neurotechnologies", "ABTasty", "NeoDeal", "Questel", "Brandquad", "Oppscience", "My Job Glasses", "Hydrafacial", "Cognixion", "Spega (Pollogen)", "DecisionBrain", "Tribalee", "Forinov", "Butterfly XR Studio", "COMPACK", "DRIME", "Supermood", "Equanimity", "MerciYanis", "Ubu", "Workelo", "BioPhys", "FACILITI", "Ethypik", "Wind my roof", "Lactips", "Holis", "Metrikus", "UBBY ENERGY", "Releaf Paper", "Cosfibel ⇒ Projet diffuseur de parfum", "UMI", "COEXEL", "Wonderflow", "Eyesee", "Biomemory", "Groupe Altera", "Civiliz", "Emye", "Petrel", "Daaddo", "Linaé", "Aquila Data", "Orijinal", "VizioSense", "UP&CHARGE", "The WIW", "Self Care One", "Potions (maintenant ABtasty)", "Innovorder", "WATT ", "Overlap (= SkyBoy)", "Typeface", "N2F", "Toolearn", "HBP Group", "Beink Dream", "Circul'egg", "Arenzi", "German Bionic", "Seturon", "Ecklo", "Mentalista", "Nuvei", "Bioptimus", "Dataiads", "NEODOC", "Cohort", "Innov&sea", "Vacufit (Celluma)", "Covalba", "DWS", "EKOO", "Simplicité", "Fruggr", "Hypervision Technology ", "Qevlar AI", "ibridge people", "Sweep", "Aive", "LIVSPOT", "Poolp", "Metagora.tech", "Q°EMOTION FRANCE SAS", "Yourban ai", "Show me the REX", "D.Terre", "Upsellr", "Loopipak", "Deepreach", "Getinside", "Yampa", "OOTENTIK", "Instaply", "PAARLY", "Live Vendor", "Azira", "Market Espace", "Argos Metrics", "Albatross AI", "NetUp", "Skiptax", "Crownpeak (fredhopper solution)", "Algolia", "Ircam - Amplify", "Reelast", "Planeezy", "Pulp'in"
+  "HapticMedia", "Woop", "Contentsquare", "Veesual", "Replika", "Midjourney", "OpenAI", "Yuka", "Algolia", "Maison Sisley", "Ecklo", "Metagora", "Dialog", "Getinside", "Azoma", "Albatrross.ai", "BioHive", "HABS.ai", "Aive", "Laiola", "Fairly Made", "Skeepers"
 ];
-
 const SENTIMENTS = ['🔥', '🚧', '❄️'];
 
 // --- B. Logique Hybride ---
@@ -35,6 +39,7 @@ const isCanvasEnv = typeof __firebase_config !== 'undefined';
 const firebaseConfig = isCanvasEnv ? JSON.parse(__firebase_config) : exportConfig;
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
+// Initialisation Sécurisée
 let app, auth, db;
 let configError = false;
 
@@ -76,9 +81,10 @@ export default function App() {
   const [selectedStartups, setSelectedStartups] = useState([]);
   const [currentStartupInput, setCurrentStartupInput] = useState('');
   
-  // Utilisation directe de la liste statique
+  // Initialisation avec la liste statique par défaut
   const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
   
+  // États pour le Dropdown Custom
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -87,7 +93,7 @@ export default function App() {
   const [database, setDatabase] = useState([]); 
   const [showDatabase, setShowDatabase] = useState(false);
 
-  // Auto-style
+  // --- AUTO-RÉPARATION DU STYLE ---
   useEffect(() => {
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
@@ -97,7 +103,21 @@ export default function App() {
     }
   }, []);
 
-  // Dropdown close
+  // --- CHARGEMENT LISTE STARTUPS ---
+  useEffect(() => {
+    /* Note: La connexion Lecture Make est désactivée par défaut pour stabilité
+       On utilise la liste statique STATIC_STARTUPS ci-dessus.
+       Pour réactiver Make Lecture, décommentez le fetch ci-dessous.
+    */
+    /*
+    if (STARTUPS_API_URL) {
+      fetch(STARTUPS_API_URL)
+        .then(...) // Code lecture Make
+    }
+    */
+  }, []);
+
+  // Gestion clic hors du dropdown pour fermer
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -108,8 +128,8 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
-  // Auth
-  const isConfigured = isCanvasEnv || (!configError && firebaseConfig.apiKey && firebaseConfig.apiKey !== "VOTRE_API_KEY_ICI");
+  // Auth & Config checks...
+  const isConfigured = !configError && firebaseConfig.apiKey && firebaseConfig.apiKey !== "VOTRE_API_KEY_ICI";
 
   useEffect(() => {
     if (!isConfigured) return;
@@ -139,12 +159,23 @@ export default function App() {
     } catch(e) { console.error("Erreur Snapshot:", e); }
   }, [authUser, isConfigured]);
 
-  // Actions
-  const handleLogin = (e) => { e.preventDefault(); if (user.firstName && user.lastName) setStep('swipe'); };
-  
+  // --- LOGIQUE MÉTIER ---
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (user.firstName && user.lastName) setStep('swipe');
+  };
+
   const handleSwipe = (direction) => {
     setSwipeDirection(direction);
-    setTimeout(() => { if (direction === 'left') { saveEntry(false, []); } else { setStep('details'); } setSwipeDirection(null); }, 400);
+    setTimeout(() => {
+      if (direction === 'left') {
+        saveEntry(false, []);
+      } else {
+        setStep('details');
+      }
+      setSwipeDirection(null);
+    }, 400);
   };
 
   const addStartup = (nameOverride) => {
@@ -160,7 +191,8 @@ export default function App() {
 
   const cycleSentiment = (index) => {
     const newStartups = [...selectedStartups];
-    const nextIndex = (SENTIMENTS.indexOf(newStartups[index].sentiment) + 1) % SENTIMENTS.length;
+    const currentSent = newStartups[index].sentiment;
+    const nextIndex = (SENTIMENTS.indexOf(currentSent) + 1) % SENTIMENTS.length;
     newStartups[index].sentiment = SENTIMENTS[nextIndex];
     setSelectedStartups(newStartups);
   };
@@ -177,11 +209,12 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE SÉQUENTIELLE (Garantit chaque ligne dans Notion) ---
+  // --- SAUVEGARDE INTELLIGENTE ---
   const saveEntry = async (collaborated, startupsList) => {
     setIsSubmitting(true);
     if (!authUser) return;
 
+    // Payload global pour Firebase (On garde tout groupé pour l'historique)
     const firebasePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
@@ -193,40 +226,40 @@ export default function App() {
     };
 
     try {
-      // 1. Sauvegarde Firebase (En un bloc)
+      // 1. Sauvegarde Firebase
       await addDoc(collection(db, COLLECTION_NAME), firebasePayload);
 
-      // 2. Envoi vers Make (Séquentiel pour garantir la création de toutes les lignes)
+      // 2. Envoi vers Make (Notion)
       if (NOTION_WEBHOOK_URL) {
           if (collaborated && startupsList.length > 0) {
-              // On utilise une boucle for...of pour envoyer les requêtes l'une après l'autre
-              // Cela évite que Make ne rate des requêtes simultanées
-              for (const startup of startupsList) {
+              // --- MODE BOUCLE : 1 REQUÊTE PAR STARTUP ---
+              // Cela garantit que Make crée une ligne par startup, même sans Iterator.
+              const requests = startupsList.map(startup => {
                   const singlePayload = {
                       ...firebasePayload,
-                      startups: [startup], // Make verra une liste de 1 élément
-                      name: startup.name, // Champ plat pour mapping facile
-                      sentiment: startup.sentiment,
-                      comment: startup.comment
+                      // On écrase la liste par un tableau contenant UNIQUEMENT cette startup
+                      // (pour que Make croie qu'il n'y en a qu'une à traiter)
+                      startups: [startup], 
+                      // On ajoute aussi des champs plats pour faciliter le mapping direct
+                      startupName: startup.name,
+                      startupSentiment: startup.sentiment,
+                      startupComment: startup.comment
                   };
-                  
-                  // On attend que la requête soit partie avant de passer à la suivante
-                  await fetch(NOTION_WEBHOOK_URL, {
+                  return fetch(NOTION_WEBHOOK_URL, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(singlePayload)
                   });
-                  
-                  // Petite pause de sécurité (optionnel mais prudent)
-                  await new Promise(r => setTimeout(r, 100));
-              }
+              });
+              await Promise.all(requests); // On attend que tout soit parti
+              
           } else {
-              // Cas NON : Un seul envoi
+              // Cas "Non" (Pas de startup) : Une seule requête simple
               fetch(NOTION_WEBHOOK_URL, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(firebasePayload)
-              }).catch(err => console.error("Erreur Make:", err));
+              }).catch(err => console.error("Erreur Make Ecriture:", err));
           }
       }
       setStep('success');
@@ -236,25 +269,54 @@ export default function App() {
     setIsSubmitting(false);
   };
 
-  const resetApp = () => { setUser({ firstName: '', lastName: '' }); setSelectedStartups([]); setStep('login'); };
+  const resetApp = () => {
+    setUser({ firstName: '', lastName: '' });
+    setSelectedStartups([]);
+    setStep('login');
+  };
 
-  // --- FILTRAGE POUR DROPDOWN (Recherche instantanée) ---
+  // --- FILTRAGE POUR DROPDOWN ---
   const filteredStartups = startupList.filter(s => 
-    s.toLowerCase().includes(currentStartupInput.toLowerCase()) && !selectedStartups.some(sel => sel.name === s)
+    s.toLowerCase().includes(currentStartupInput.toLowerCase()) &&
+    !selectedStartups.some(sel => sel.name === s)
   );
 
-  // --- RENDU ---
+  // --- ECRANS ---
 
-  if (!isConfigured) return <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6 text-center text-gray-500 font-sans">Configuration requise (Firebase).</div>;
+  if (!isConfigured) return (
+    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-gray-100 p-6 font-sans text-center">
+      <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-red-100">
+        <AlertTriangle className="text-red-500 w-16 h-16 mb-4 mx-auto" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Configuration Requise</h2>
+        <div className="bg-gray-50 p-4 rounded-lg text-left mb-6 border border-gray-200">
+          <ol className="text-xs text-gray-600 space-y-2 list-decimal list-inside">
+            <li>Ouvrez le fichier <code>App.js</code>.</li>
+            <li>Remplissez <code>exportConfig</code> avec vos clés Firebase.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
 
   if (step === 'login') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col items-center justify-center p-8">
-        <div className="mb-8 text-center"><h1 className="text-3xl font-serif font-bold text-gray-900 tracking-wider mb-2">SISLEY PULSE</h1><p className="text-gray-500 text-sm">L'innovation en un geste.</p></div>
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-serif font-bold text-gray-900 tracking-wider mb-2">SISLEY PULSE</h1>
+          <p className="text-gray-500 text-sm">L'innovation en un geste.</p>
+        </div>
         <form onSubmit={handleLogin} className="w-full space-y-4">
-          <input type="text" required value={user.firstName} onChange={(e) => setUser({...user, firstName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Prénom (ex: Julie)" />
-          <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Nom (ex: Martin)" />
-          <Button onClick={handleLogin} className="w-full mt-8" loading={!authUser}>{authUser ? "Commencer" : "Connexion..."}</Button>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Prénom</label>
+            <input type="text" required value={user.firstName} onChange={(e) => setUser({...user, firstName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Ex: Julie" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Nom</label>
+            <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Ex: Martin" />
+          </div>
+          <Button onClick={handleLogin} className="w-full mt-8" loading={!authUser}>
+            {authUser ? <span className="flex items-center gap-2">Commencer <ArrowRight size={18}/></span> : "Connexion..."}
+          </Button>
         </form>
       </div>
       <Footer onOpenAdmin={() => setShowDatabase(true)} />
@@ -265,15 +327,23 @@ export default function App() {
   if (step === 'swipe') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative">
-        <div className="absolute top-6 left-0 right-0 text-center"><span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Semestre 2 - 2025</span></div>
+        <div className="absolute top-6 left-0 right-0 text-center">
+          <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Semestre 2 - 2025</span>
+        </div>
         <div className={`relative w-full aspect-[4/5] max-h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center p-6 transition-all duration-500 transform ${swipeDirection === 'left' ? '-translate-x-full -rotate-12 opacity-0' : ''} ${swipeDirection === 'right' ? 'translate-x-full rotate-12 opacity-0' : ''}`}>
-          <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6"><Briefcase className="text-purple-600" size={32} /></div>
-          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 text-center">Avez-vous collaboré avec des Startups ?</h2>
+          <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+            <Briefcase className="text-purple-600" size={32} />
+          </div>
+          <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 text-center">Avez-vous collaboré avec des startups ?</h2>
           <p className="text-gray-400 text-xs px-2 text-center">Au cours des 6 derniers mois.</p>
         </div>
         <div className="flex items-center gap-8 mt-10">
-          <button onClick={() => handleSwipe('left')} className="w-16 h-16 rounded-full bg-white shadow-lg border border-gray-100 flex items-center justify-center text-red-500 hover:scale-110 transition-all"><X size={32} /></button>
-          <button onClick={() => handleSwipe('right')} className="w-16 h-16 rounded-full bg-black shadow-lg flex items-center justify-center text-green-400 hover:scale-110 transition-all"><Heart size={30} fill="currentColor" className="mt-1" /></button>
+          <button onClick={() => handleSwipe('left')} className="w-16 h-16 rounded-full bg-white shadow-lg border border-gray-100 flex items-center justify-center text-red-500 hover:scale-110 transition-all active:scale-95">
+            <X size={32} />
+          </button>
+          <button onClick={() => handleSwipe('right')} className="w-16 h-16 rounded-full bg-black shadow-lg flex items-center justify-center text-green-400 hover:scale-110 transition-all active:scale-95">
+            <Heart size={30} fill="currentColor" className="mt-1" />
+          </button>
         </div>
       </div>
     </ScreenWrapper>
@@ -282,45 +352,81 @@ export default function App() {
   if (step === 'details') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-        <div className="mb-6"><h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">C'est un Match ! ⚡️</h2><p className="text-gray-500 text-sm">Quelles startups et quel feeling ?</p></div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-serif font-bold text-gray-900 mb-1">C'est un Match ! ⚡️</h2>
+          <p className="text-gray-500 text-sm">Quelles startups et quel feeling ?</p>
+        </div>
         <div className="flex-1">
           <div className="flex flex-col gap-4 mb-6">
             {selectedStartups.map((s, i) => (
               <div key={i} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm animate-fade-in">
-                <div className="flex items-center justify-between mb-3"><span className="font-bold text-gray-800 truncate">{s.name}</span><div className="flex items-center gap-2"><button onClick={() => cycleSentiment(i)} className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors">{s.sentiment}</button><button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button></div></div>
-                <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div><textarea value={s.comment} onChange={(e) => updateComment(i, e.target.value)} placeholder="Commentaire..." className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" /></div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-bold text-gray-800 truncate">{s.name}</span>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => cycleSentiment(i)} className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors">
+                      {s.sentiment}
+                    </button>
+                    <button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button>
+                  </div>
+                </div>
+                <div className="relative">
+                    <div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div>
+                    <textarea value={s.comment} onChange={(e) => updateComment(i, e.target.value)} placeholder="Un commentaire sur cette collaboration ?" className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" />
+                </div>
               </div>
             ))}
             {selectedStartups.length === 0 && <span className="text-gray-400 italic text-sm text-center py-8 block bg-gray-50 rounded-xl border border-dashed border-gray-200">Ajoute une startup ci-dessous...</span>}
           </div>
           
+          {/* SÉLECTEUR AVEC DROPDOWN CUSTOM */}
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6" ref={dropdownRef}>
-            <div className="mb-2">
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label>
-            </div>
+            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Ajouter une Startup</label>
             <div className="flex gap-2 relative">
               <div className="relative flex-1">
                 <input 
                     type="text" 
                     value={currentStartupInput} 
-                    onChange={(e) => { setCurrentStartupInput(e.target.value); setShowDropdown(true); }} 
-                    onFocus={() => setShowDropdown(true)} 
+                    onChange={(e) => {
+                      setCurrentStartupInput(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
                     onKeyDown={(e) => e.key === 'Enter' && addStartup()} 
                     className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
-                    placeholder="Rechercher..." 
+                    placeholder="Rechercher ou saisir..." 
                 />
-                {/* DROPDOWN AVEC FILTRAGE INSTANTANÉ */}
-                {showDropdown && (
-                  <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
-                    {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}
+                
+                {/* DROPDOWN LIST */}
+                {showDropdown && filteredStartups.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
+                    {filteredStartups.map((s, i) => (
+                      <li 
+                        key={i}
+                        className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                        onClick={() => addStartup(s)}
+                      >
+                        {s}
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>
               <button onClick={() => addStartup()} className="bg-black hover:bg-gray-800 text-white rounded-lg px-4 font-bold text-xl transition-colors">+</button>
             </div>
           </div>
+
+          <div className="flex justify-center items-center gap-4 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg mx-auto mb-4">
+            <div className="flex items-center gap-1.5"><span className="text-base">🔥</span> Top</div>
+            <div className="w-px h-3 bg-gray-300"></div>
+            <div className="flex items-center gap-1.5"><span className="text-base">🚧</span> Moyen</div>
+            <div className="w-px h-3 bg-gray-300"></div>
+            <div className="flex items-center gap-1.5"><span className="text-base">❄️</span> Froid</div>
+          </div>
         </div>
-        <div className="mt-auto pt-4"><Button onClick={() => saveEntry(true, selectedStartups)} className="w-full" disabled={selectedStartups.length === 0} loading={isSubmitting}>Valider</Button><button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button></div>
+        <div className="mt-auto pt-4">
+          <Button onClick={() => saveEntry(true, selectedStartups)} className="w-full" disabled={selectedStartups.length === 0} loading={isSubmitting}>Valider</Button>
+          <button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button>
+        </div>
       </div>
     </ScreenWrapper>
   );
@@ -328,7 +434,9 @@ export default function App() {
   if (step === 'success') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce"><Heart className="text-green-600 mt-2" size={40} fill="currentColor" /></div>
+        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 animate-bounce">
+          <Heart className="text-green-600 mt-2" size={40} fill="currentColor" />
+        </div>
         <h2 className="text-3xl font-serif font-bold text-gray-900 mb-2">Merci {user.firstName} !</h2>
         <p className="text-gray-500 mb-8">Ta contribution aide Sisley à innover.</p>
         <Button onClick={resetApp} variant="secondary">Nouvelle entrée</Button>
@@ -337,25 +445,110 @@ export default function App() {
       {showDatabase && <DatabaseView data={database} onClose={() => setShowDatabase(false)} />}
     </ScreenWrapper>
   );
+
   return null;
 }
 
-// WRAPPER AVEC STYLE DE SECURITE POUR LE CENTRAGE FORCE
 const ScreenWrapper = ({ children }) => (
-  <div 
-    className="min-h-screen w-full bg-gray-100 flex items-center justify-center p-4 font-sans"
-    style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%' }} // Style inline de secours
-  >
-    <div className="w-full max-w-md bg-white min-h-[600px] rounded-3xl shadow-2xl overflow-hidden relative flex flex-col mx-auto">
+  <div className="min-h-screen w-full bg-gray-100 flex items-center justify-center p-4 font-sans">
+    <div className="w-full max-w-md bg-white min-h-[600px] rounded-3xl shadow-2xl overflow-hidden relative flex flex-col">
       {children}
     </div>
   </div>
 );
 
-const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab v2.9</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
+const Footer = ({ onOpenAdmin }) => (
+  <footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400">
+    <span className="pl-4">Sisley Innovation Lab vFinal Prod</span>
+    <button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button>
+  </footer>
+);
+
 const DatabaseView = ({ data, onClose }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); const [password, setPassword] = useState(''); const [error, setError] = useState(false);
-  const handleAuth = (e) => { e.preventDefault(); if (password === ADMIN_PASSWORD) { setIsAuthenticated(true); setError(false); } else { setError(true); } };
-  if (!isAuthenticated) return (<div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up"><div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0"><div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">ADMIN ACCESS</h2></div><button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button></div><div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50"><div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-xs text-center border border-gray-100"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-6 mx-auto"><Lock size={32} className="text-gray-600"/></div><h3 className="text-lg font-bold mb-4 text-gray-800">Accès Sécurisé</h3><form onSubmit={handleAuth} className="space-y-4"><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black transition-all" autoFocus />{error && <p className="text-red-500 text-xs font-medium">Mot de passe incorrect</p>}<button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">Voir les données</button></form><p className="mt-6 text-xs text-gray-400">Sisley Internal Only</p></div></div></div>);
-  return (<div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up"><div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0"><div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">SISLEY DATA HUB</h2></div><button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button></div><div className="flex-1 overflow-auto p-4 bg-gray-50"><div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">{data.length === 0 && <div className="p-8 text-center text-gray-400 italic">Aucune donnée...</div>}<table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-500 uppercase text-xs"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Qui</th><th className="px-4 py-3">Startups & Avis</th></tr></thead><tbody className="divide-y divide-gray-100">{data.map((entry) => (<tr key={entry.id}><td className="px-4 py-3 text-gray-500 text-xs align-top">{entry.readableDate}</td><td className="px-4 py-3 font-medium align-top">{entry.userDisplay}</td><td className="px-4 py-3"><div className="flex flex-col gap-2">{entry.collaborated ? (entry.startups || []).map((s, i) => (<div key={i} className="bg-purple-50 text-purple-900 px-3 py-2 rounded-lg text-xs border border-purple-100"><div className="flex items-center gap-2 font-bold mb-1">{s.name} <span className="text-sm">{s.sentiment}</span></div>{s.comment && <div className="text-purple-700 italic border-t border-purple-100 pt-1 mt-1">"{s.comment}"</div>}</div>)) : <span className="text-gray-400 text-xs">NON</span>}</div></td></tr>))}</tbody></table></div></div></div>);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleAuth = (e) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setError(false);
+    } else {
+      setError(true);
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up">
+        <div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0">
+             <div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">ADMIN ACCESS</h2></div>
+             <button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50">
+            <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-xs text-center border border-gray-100">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-6 mx-auto">
+                    <Lock size={32} className="text-gray-600"/>
+                </div>
+                <h3 className="text-lg font-bold mb-4 text-gray-800">Accès Sécurisé</h3>
+                <form onSubmit={handleAuth} className="space-y-4">
+                    <input 
+                        type="password" 
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Mot de passe"
+                        className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                        autoFocus
+                    />
+                    {error && <p className="text-red-500 text-xs font-medium">Mot de passe incorrect</p>}
+                    <button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">
+                        Voir les données
+                    </button>
+                </form>
+                <p className="mt-6 text-xs text-gray-400">Sisley Internal Only</p>
+            </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up">
+      <div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0">
+        <div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">SISLEY DATA HUB</h2></div>
+        <button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button>
+      </div>
+      <div className="flex-1 overflow-auto p-4 bg-gray-50">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {data.length === 0 && <div className="p-8 text-center text-gray-400 italic">Aucune donnée...</div>}
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 text-gray-500 uppercase text-xs">
+              <tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Qui</th><th className="px-4 py-3">Startups & Avis</th></tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="px-4 py-3 text-gray-500 text-xs align-top">{entry.readableDate}</td>
+                  <td className="px-4 py-3 font-medium align-top">{entry.userDisplay}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col gap-2">
+                      {entry.collaborated ? (entry.startups || []).map((s, i) => (
+                        <div key={i} className="bg-purple-50 text-purple-900 px-3 py-2 rounded-lg text-xs border border-purple-100">
+                            <div className="flex items-center gap-2 font-bold mb-1">
+                                {s.name} <span className="text-sm">{s.sentiment}</span>
+                            </div>
+                            {s.comment && <div className="text-purple-700 italic border-t border-purple-100 pt-1 mt-1">"{s.comment}"</div>}
+                        </div>
+                      )) : <span className="text-gray-400 text-xs">NON</span>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 };

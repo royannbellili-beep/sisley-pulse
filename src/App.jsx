@@ -81,6 +81,9 @@ export default function App() {
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  
+  // État pour la bulle d'aide éphémère
+  const [showSentimentHint, setShowSentimentHint] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authUser, setAuthUser] = useState(null);
@@ -152,6 +155,10 @@ export default function App() {
     if (nameToAdd) {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '' }]);
+        
+        // Déclenche la bulle d'aide pour la dernière startup ajoutée
+        setShowSentimentHint(true);
+        setTimeout(() => setShowSentimentHint(false), 3500); // Disparaît après 3.5 sec
       }
       setCurrentStartupInput('');
       setShowDropdown(false);
@@ -163,6 +170,9 @@ export default function App() {
     const nextIndex = (SENTIMENTS.indexOf(newStartups[index].sentiment) + 1) % SENTIMENTS.length;
     newStartups[index].sentiment = SENTIMENTS[nextIndex];
     setSelectedStartups(newStartups);
+    
+    // Si l'utilisateur change le sentiment, on peut cacher l'indice plus tôt car il a compris
+    if (showSentimentHint) setShowSentimentHint(false);
   };
 
   const updateComment = (index, text) => {
@@ -177,7 +187,7 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE SÉQUENTIELLE (Garantit chaque ligne dans Notion) ---
+  // --- SAUVEGARDE SÉQUENTIELLE ---
   const saveEntry = async (collaborated, startupsList) => {
     setIsSubmitting(true);
     if (!authUser) return;
@@ -199,7 +209,6 @@ export default function App() {
       // 2. Envoi vers Make (Séquentiel pour garantir la création de toutes les lignes)
       if (NOTION_WEBHOOK_URL) {
           if (collaborated && startupsList.length > 0) {
-              // On utilise une boucle for...of pour envoyer les requêtes l'une après l'autre
               for (const startup of startupsList) {
                   const singlePayload = {
                       ...firebasePayload,
@@ -215,7 +224,6 @@ export default function App() {
                       body: JSON.stringify(singlePayload)
                   });
                   
-                  // Petite pause de sécurité
                   await new Promise(r => setTimeout(r, 100));
               }
           } else {
@@ -224,7 +232,7 @@ export default function App() {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(firebasePayload)
-              }).catch(err => console.error("Erreur Make Ecriture:", err));
+              }).catch(err => console.error("Erreur Make:", err));
           }
       }
       setStep('success');
@@ -236,7 +244,7 @@ export default function App() {
 
   const resetApp = () => { setUser({ firstName: '', lastName: '' }); setSelectedStartups([]); setStep('login'); };
 
-  // --- FILTRAGE POUR DROPDOWN ---
+  // --- FILTRAGE POUR DROPDOWN (Recherche instantanée) ---
   const filteredStartups = startupList.filter(s => 
     s.toLowerCase().includes(currentStartupInput.toLowerCase()) &&
     !selectedStartups.some(sel => sel.name === s)
@@ -267,7 +275,7 @@ export default function App() {
         <div className="absolute top-6 left-0 right-0 text-center"><span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Semestre 2 - 2025</span></div>
         <div className={`relative w-full aspect-[4/5] max-h-[400px] bg-white rounded-2xl shadow-lg border border-gray-100 flex flex-col items-center justify-center p-6 transition-all duration-500 transform ${swipeDirection === 'left' ? '-translate-x-full -rotate-12 opacity-0' : ''} ${swipeDirection === 'right' ? 'translate-x-full rotate-12 opacity-0' : ''}`}>
           <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6"><Briefcase className="text-purple-600" size={32} /></div>
-          {/* TEXTE MODIFIÉ */}
+          {/* TEXTE MODIFIÉ ICI */}
           <h2 className="text-xl font-serif font-bold text-gray-800 mb-3 text-center">Avez-vous collaboré avec des startups ?</h2>
           <p className="text-gray-400 text-xs px-2 text-center">Au cours des 6 derniers mois.</p>
         </div>
@@ -286,8 +294,29 @@ export default function App() {
         <div className="flex-1">
           <div className="flex flex-col gap-4 mb-6">
             {selectedStartups.map((s, i) => (
-              <div key={i} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm animate-fade-in">
-                <div className="flex items-center justify-between mb-3"><span className="font-bold text-gray-800 truncate">{s.name}</span><div className="flex items-center gap-2"><button onClick={() => cycleSentiment(i)} className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors">{s.sentiment}</button><button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button></div></div>
+              <div key={i} className="bg-white border border-gray-200 p-4 rounded-xl shadow-sm animate-fade-in relative">
+                <div className="flex items-center justify-between mb-3">
+                    <span className="font-bold text-gray-800 truncate">{s.name}</span>
+                    <div className="flex items-center gap-2 relative">
+                        {/* BOUTON AVEC MISE EN VALEUR ET BULLE */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => cycleSentiment(i)} 
+                                className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors ring-2 ring-purple-100 ring-offset-1"
+                            >
+                                {s.sentiment}
+                            </button>
+                            {/* BULLE D'AIDE EPHEMERE */}
+                            {showSentimentHint && i === selectedStartups.length - 1 && (
+                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
+                                    Tapez pour changer !
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
+                                </div>
+                            )}
+                        </div>
+                        <button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button>
+                    </div>
+                </div>
                 <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div><textarea value={s.comment} onChange={(e) => updateComment(i, e.target.value)} placeholder="Commentaire..." className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" /></div>
               </div>
             ))}

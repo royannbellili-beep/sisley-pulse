@@ -1,27 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
-import { Heart, X, Briefcase, ArrowRight, Database, BarChart2, Loader2, AlertTriangle, Settings, Lock, MessageSquare, RefreshCw, Wifi, WifiOff, HelpCircle } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
-const exportConfig = {
-    apiKey: "AIzaSyBg9b3tYGtjVkKsyX4sNaEOt4R__SJ6Lug",
-    authDomain: "sisley-pulse.firebaseapp.com",
-    projectId: "sisley-pulse",
-    storageBucket: "sisley-pulse.firebasestorage.app",
-    messagingSenderId: "568190753552",
-    appId: "1:568190753552:web:2473abdfb47965689be395"
-  };
-
-// URL Webhook Lecture (Désactivé pour utiliser la liste CSV intégrée ci-dessous)
-const STARTUPS_API_URL = ""; 
-
 // URL Webhook Écriture (Votre scénario Make qui fonctionne)
 const NOTION_WEBHOOK_URL = "https://hook.eu2.make.com/kcv8aaztdoaapiwwhwjfovgl4tc52mvo"; 
-
-const ADMIN_PASSWORD = "SISLEY2025"; 
 
 // --- 2. LISTE COMPLETE ISSUE DU CSV (200+ Startups) ---
 const STATIC_STARTUPS = [
@@ -29,27 +12,6 @@ const STATIC_STARTUPS = [
 ];
 
 const SENTIMENTS = ['🔥', '🚧', '❄️'];
-
-// --- B. Logique Hybride ---
-const isCanvasEnv = typeof __firebase_config !== 'undefined';
-const firebaseConfig = isCanvasEnv ? JSON.parse(__firebase_config) : exportConfig;
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-let app, auth, db;
-let configError = false;
-
-try {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-} catch (e) {
-  console.error("Erreur Init Firebase:", e);
-  configError = true;
-}
-
-const COLLECTION_NAME = isCanvasEnv 
-  ? `artifacts/${appId}/public/data/sisley_pulse` 
-  : 'sisley_pulse_feedback'; 
 
 // --- 3. COMPOSANTS UI ---
 const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, loading = false }) => {
@@ -81,17 +43,13 @@ export default function App() {
   const [otherReasonText, setOtherReasonText] = useState('');
 
   // Utilisation directe de la liste statique
-  const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
+  const [startupList] = useState(STATIC_STARTUPS); 
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   
   const [showSentimentHint, setShowSentimentHint] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authUser, setAuthUser] = useState(null);
-  const [database, setDatabase] = useState([]); 
-  const [showDatabase, setShowDatabase] = useState(false);
 
   // Auto-style
   useEffect(() => {
@@ -114,37 +72,6 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
-  // Auth
-  const isConfigured = isCanvasEnv || (!configError && firebaseConfig.apiKey && firebaseConfig.apiKey !== "VOTRE_API_KEY_ICI");
-
-  useEffect(() => {
-    if (!isConfigured) return;
-    const initAuth = async () => {
-      try {
-        if (isCanvasEnv && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-           await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-           await signInAnonymously(auth);
-        }
-      } catch (error) { console.error("Erreur Auth:", error); }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => setAuthUser(u));
-    return () => unsubscribe();
-  }, [isConfigured]);
-
-  useEffect(() => {
-    if (!authUser || !isConfigured) return;
-    try {
-        const unsubscribe = onSnapshot(collection(db, COLLECTION_NAME), (snapshot) => {
-          const entries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-          setDatabase(entries);
-        }, (error) => console.error("Erreur DB:", error));
-        return () => unsubscribe();
-    } catch(e) { console.error("Erreur Snapshot:", e); }
-  }, [authUser, isConfigured]);
-
   // Actions
   const handleLogin = (e) => { e.preventDefault(); if (user.firstName && user.lastName) setStep('swipe'); };
   
@@ -152,7 +79,6 @@ export default function App() {
     setSwipeDirection(direction);
     setTimeout(() => { 
         if (direction === 'left') { 
-            // Si NON, on va vers l'étape de raison
             setStep('reason'); 
         } else { 
             setStep('details'); 
@@ -196,40 +122,32 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE UNIFIÉE ---
+  // --- SAUVEGARDE DIRECTE VERS MAKE (NO FIREBASE) ---
   const saveEntry = async (collaborated, startupsList) => {
     setIsSubmitting(true);
-    if (!authUser) return;
 
-    // Construction du payload pour Firebase
-    const firebasePayload = {
+    const basePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
       userDisplay: `${user.firstName} ${user.lastName}`,
       collaborated: collaborated,
-      startups: startupsList,
-      // Nouveaux champs pour le "NON"
       reason: collaborated ? null : noCollabReason,
       reasonDetails: collaborated ? null : otherReasonText,
-      
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
     };
 
     try {
-      // 1. Sauvegarde Firebase (En un bloc)
-      await addDoc(collection(db, COLLECTION_NAME), firebasePayload);
-
-      // 2. Envoi vers Make (Séquentiel si OUI, Unique si NON)
       if (NOTION_WEBHOOK_URL) {
           if (collaborated && startupsList.length > 0) {
+              // Boucle d'envoi séquentiel pour garantir la création des lignes
               for (const startup of startupsList) {
                   const singlePayload = {
-                      ...firebasePayload,
-                      startups: [startup], // Make verra une liste de 1 élément
+                      ...basePayload,
                       name: startup.name, 
                       sentiment: startup.sentiment,
-                      comment: startup.comment
+                      comment: startup.comment,
+                      startups: [startup] // Rétro-compatibilité si besoin
                   };
                   
                   await fetch(NOTION_WEBHOOK_URL, {
@@ -238,20 +156,21 @@ export default function App() {
                       body: JSON.stringify(singlePayload)
                   });
                   
-                  await new Promise(r => setTimeout(r, 100));
+                  await new Promise(r => setTimeout(r, 150)); // Petite pause anti-spam
               }
           } else {
-              // Cas NON : Un seul envoi avec la raison
-              fetch(NOTION_WEBHOOK_URL, {
+              // Envoi unique pour le NON
+              await fetch(NOTION_WEBHOOK_URL, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(firebasePayload)
-              }).catch(err => console.error("Erreur Make:", err));
+                  body: JSON.stringify(basePayload)
+              });
           }
       }
       setStep('success');
     } catch (e) {
-      alert("Erreur de sauvegarde: " + e.message);
+      console.error(e);
+      alert("Erreur de connexion. Vérifiez votre réseau.");
     }
     setIsSubmitting(false);
   };
@@ -264,15 +183,12 @@ export default function App() {
       setStep('login'); 
   };
 
-  // --- FILTRAGE POUR DROPDOWN (Recherche instantanée) ---
   const filteredStartups = startupList.filter(s => 
     s.toLowerCase().includes(currentStartupInput.toLowerCase()) &&
     !selectedStartups.some(sel => sel.name === s)
   );
 
   // --- RENDU ---
-
-  if (!isConfigured) return <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6 text-center text-gray-500 font-sans">Configuration requise (Firebase).</div>;
 
   if (step === 'login') return (
     <ScreenWrapper>
@@ -281,11 +197,10 @@ export default function App() {
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <input type="text" required value={user.firstName} onChange={(e) => setUser({...user, firstName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Prénom (ex: Julie)" />
           <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Nom (ex: Martin)" />
-          <Button onClick={handleLogin} className="w-full mt-8" loading={!authUser}>{authUser ? "Commencer" : "Connexion..."}</Button>
+          <Button onClick={handleLogin} className="w-full mt-8">Commencer</Button>
         </form>
       </div>
-      <Footer onOpenAdmin={() => setShowDatabase(true)} />
-      {showDatabase && <DatabaseView data={database} onClose={() => setShowDatabase(false)} />}
+      <Footer />
     </ScreenWrapper>
   );
 
@@ -306,7 +221,6 @@ export default function App() {
     </ScreenWrapper>
   );
 
-  // --- NOUVEL ÉCRAN : RAISON DU NON ---
   if (step === 'reason') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col p-8">
@@ -314,53 +228,18 @@ export default function App() {
             <h2 className="text-2xl font-serif font-bold text-gray-900 mb-2">Dites-nous tout ! 🧐</h2>
             <p className="text-gray-500 text-sm">Pourquoi n'avez-vous pas collaboré ce semestre ?</p>
         </div>
-
         <div className="space-y-3 flex-1">
-            {[
-                "Pas courant dans mon métier",
-                "Je ne connais pas bien l'univers startup",
-                "Pas de besoin",
-                "Autre"
-            ].map((option) => (
-                <button
-                    key={option}
-                    onClick={() => {
-                        setNoCollabReason(option);
-                        if (option !== "Autre") setOtherReasonText('');
-                    }}
-                    className={`w-full p-4 rounded-xl text-left text-sm font-medium border transition-all ${
-                        noCollabReason === option 
-                        ? 'bg-black text-white border-black shadow-md' 
-                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}
-                >
-                    {option}
-                </button>
+            {["Pas courant dans mon métier", "Je ne connais pas bien l'univers startup", "Pas de besoin", "Autre"].map((option) => (
+                <button key={option} onClick={() => { setNoCollabReason(option); if (option !== "Autre") setOtherReasonText(''); }} className={`w-full p-4 rounded-xl text-left text-sm font-medium border transition-all ${noCollabReason === option ? 'bg-black text-white border-black shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}>{option}</button>
             ))}
-
-            {/* Champ texte si Autre */}
             {noCollabReason === "Autre" && (
                 <div className="animate-fade-in mt-2">
-                    <textarea 
-                        value={otherReasonText}
-                        onChange={(e) => setOtherReasonText(e.target.value)}
-                        placeholder="Précisez votre raison..."
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black min-h-[100px]"
-                        autoFocus
-                    />
+                    <textarea value={otherReasonText} onChange={(e) => setOtherReasonText(e.target.value)} placeholder="Précisez votre raison..." className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black min-h-[100px]" autoFocus />
                 </div>
             )}
         </div>
-
         <div className="mt-auto pt-6">
-            <Button 
-                onClick={() => saveEntry(false, [])} 
-                className="w-full" 
-                disabled={!noCollabReason || (noCollabReason === "Autre" && !otherReasonText.trim())} 
-                loading={isSubmitting}
-            >
-                Valider
-            </Button>
+            <Button onClick={() => saveEntry(false, [])} className="w-full" disabled={!noCollabReason || (noCollabReason === "Autre" && !otherReasonText.trim())} loading={isSubmitting}>Valider</Button>
             <button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button>
         </div>
       </div>
@@ -378,20 +257,10 @@ export default function App() {
                 <div className="flex items-center justify-between mb-3">
                     <span className="font-bold text-gray-800 truncate">{s.name}</span>
                     <div className="flex items-center gap-2 relative">
-                        {/* BOUTON AVEC MISE EN VALEUR ET BULLE */}
                         <div className="relative">
-                            <button 
-                                onClick={() => cycleSentiment(i)} 
-                                className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors ring-2 ring-purple-100 ring-offset-1"
-                            >
-                                {s.sentiment}
-                            </button>
-                            {/* BULLE D'AIDE EPHEMERE */}
+                            <button onClick={() => cycleSentiment(i)} className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors ring-2 ring-purple-100 ring-offset-1">{s.sentiment}</button>
                             {showSentimentHint && i === selectedStartups.length - 1 && (
-                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
-                                    Tapez pour changer !
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
-                                </div>
+                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">Tapez pour changer !<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div></div>
                             )}
                         </div>
                         <button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button>
@@ -404,36 +273,13 @@ export default function App() {
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6" ref={dropdownRef}>
-            <div className="mb-2">
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label>
-            </div>
+            <div className="mb-2"><label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label></div>
             <div className="flex gap-2 relative">
               <div className="relative flex-1">
-                <input 
-                    type="text" 
-                    value={currentStartupInput} 
-                    onChange={(e) => {
-                      setCurrentStartupInput(e.target.value);
-                      setShowDropdown(true);
-                    }}
-                    onFocus={() => setShowDropdown(true)}
-                    onKeyDown={(e) => e.key === 'Enter' && addStartup()} 
-                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
-                    placeholder="Rechercher..." 
-                />
-                
-                {/* DROPDOWN LIST */}
-                {showDropdown && filteredStartups.length > 0 && (
+                <input type="text" value={currentStartupInput} onChange={(e) => { setCurrentStartupInput(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} onKeyDown={(e) => e.key === 'Enter' && addStartup()} className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" placeholder="Rechercher..." />
+                {showDropdown && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
-                    {filteredStartups.map((s, i) => (
-                      <li 
-                        key={i}
-                        className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
-                        onClick={() => addStartup(s)}
-                      >
-                        {s}
-                      </li>
-                    ))}
+                    {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}
                   </ul>
                 )}
               </div>
@@ -454,14 +300,12 @@ export default function App() {
         <p className="text-gray-500 mb-8">Ta contribution aide Sisley à innover.</p>
         <Button onClick={resetApp} variant="secondary">Nouvelle entrée</Button>
       </div>
-      <Footer onOpenAdmin={() => setShowDatabase(true)} />
-      {showDatabase && <DatabaseView data={database} onClose={() => setShowDatabase(false)} />}
+      <Footer />
     </ScreenWrapper>
   );
   return null;
 }
 
-// WRAPPER ADAPTATIF
 const ScreenWrapper = ({ children }) => (
   <div className="min-h-screen w-full bg-gray-100 flex justify-center font-sans">
     <div className="w-full max-w-md bg-white min-h-screen shadow-2xl relative flex flex-col">
@@ -470,10 +314,4 @@ const ScreenWrapper = ({ children }) => (
   </div>
 );
 
-const Footer = ({ onOpenAdmin }) => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-between items-center text-xs text-gray-400"><span className="pl-4">Sisley Innovation Lab v3.0</span><button onClick={onOpenAdmin} className="flex items-center gap-1 hover:text-black transition-colors pr-4"><BarChart2 size={14} /> Admin</button></footer>);
-const DatabaseView = ({ data, onClose }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); const [password, setPassword] = useState(''); const [error, setError] = useState(false);
-  const handleAuth = (e) => { e.preventDefault(); if (password === ADMIN_PASSWORD) { setIsAuthenticated(true); setError(false); } else { setError(true); } };
-  if (!isAuthenticated) return (<div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up"><div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0"><div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">ADMIN ACCESS</h2></div><button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button></div><div className="flex-1 flex flex-col items-center justify-center p-8 bg-gray-50"><div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-xs text-center border border-gray-100"><div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-6 mx-auto"><Lock size={32} className="text-gray-600"/></div><h3 className="text-lg font-bold mb-4 text-gray-800">Accès Sécurisé</h3><form onSubmit={handleAuth} className="space-y-4"><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mot de passe" className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-black transition-all" autoFocus />{error && <p className="text-red-500 text-xs font-medium">Mot de passe incorrect</p>}<button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">Voir les données</button></form><p className="mt-6 text-xs text-gray-400">Sisley Internal Only</p></div></div></div>);
-  return (<div className="absolute inset-0 bg-white z-50 flex flex-col animate-slide-up"><div className="bg-black text-white p-4 flex justify-between items-center shadow-md shrink-0"><div className="flex items-center gap-2"><Database size={18} /><h2 className="font-bold tracking-wider text-sm">SISLEY DATA HUB</h2></div><button onClick={onClose} className="bg-gray-800 p-2 rounded-full hover:bg-gray-700"><X size={18}/></button></div><div className="flex-1 overflow-auto p-4 bg-gray-50"><div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">{data.length === 0 && <div className="p-8 text-center text-gray-400 italic">Aucune donnée...</div>}<table className="w-full text-sm text-left"><thead className="bg-gray-50 text-gray-500 uppercase text-xs"><tr><th className="px-4 py-3">Date</th><th className="px-4 py-3">Qui</th><th className="px-4 py-3">Détails</th></tr></thead><tbody className="divide-y divide-gray-100">{data.map((entry) => (<tr key={entry.id}><td className="px-4 py-3 text-gray-500 text-xs align-top">{entry.readableDate}</td><td className="px-4 py-3 font-medium align-top">{entry.userDisplay}</td><td className="px-4 py-3"><div className="flex flex-col gap-2">{entry.collaborated ? (entry.startups || []).map((s, i) => (<div key={i} className="bg-purple-50 text-purple-900 px-3 py-2 rounded-lg text-xs border border-purple-100"><div className="flex items-center gap-2 font-bold mb-1">{s.name} <span className="text-sm">{s.sentiment}</span></div>{s.comment && <div className="text-purple-700 italic border-t border-purple-100 pt-1 mt-1">"{s.comment}"</div>}</div>)) : <span className="text-gray-500 text-xs italic bg-gray-100 px-2 py-1 rounded">NON - {entry.reason}{entry.reason === "Autre" && `: ${entry.reasonDetails}`}</span>}</div></td></tr>))}</tbody></table></div></div></div>);
-};
+const Footer = () => (<footer className="w-full bg-white border-t border-gray-200 p-3 flex justify-center items-center text-xs text-gray-400"><span>Sisley Innovation Lab v3.0</span></footer>);

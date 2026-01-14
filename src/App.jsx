@@ -43,7 +43,7 @@ export default function App() {
   const [otherReasonText, setOtherReasonText] = useState('');
 
   // Utilisation directe de la liste statique
-  const [startupList] = useState(STATIC_STARTUPS); 
+  const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -147,7 +147,7 @@ export default function App() {
                       name: startup.name, 
                       sentiment: startup.sentiment,
                       comment: startup.comment,
-                      startups: [startup] // Rétro-compatibilité si besoin
+                      startups: [startup] 
                   };
                   
                   await fetch(NOTION_WEBHOOK_URL, {
@@ -159,11 +159,19 @@ export default function App() {
                   await new Promise(r => setTimeout(r, 150)); // Petite pause anti-spam
               }
           } else {
-              // Envoi unique pour le NON
+              // Envoi unique pour le NON - avec champs remplis pour Make
+              const noCollabPayload = {
+                  ...basePayload,
+                  name: "Aucune collaboration", // Remplissage pour éviter les erreurs de mapping
+                  sentiment: "N/A",
+                  comment: noCollabReason === "Autre" ? otherReasonText : noCollabReason,
+                  startups: []
+              };
+
               await fetch(NOTION_WEBHOOK_URL, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(basePayload)
+                  body: JSON.stringify(noCollabPayload)
               });
           }
       }

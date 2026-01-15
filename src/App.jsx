@@ -43,15 +43,16 @@ export default function App() {
   const [otherReasonText, setOtherReasonText] = useState('');
 
   // Utilisation directe de la liste statique
-  const [startupList] = useState(STATIC_STARTUPS); 
+  const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   
+  // États pour les bulles d'aide éphémères
   const [showSentimentHint, setShowSentimentHint] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-style (Tailwind)
+  // Auto-style (Tailwind) & Custom Animations
   useEffect(() => {
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
@@ -59,6 +60,23 @@ export default function App() {
       script.src = "https://cdn.tailwindcss.com";
       document.head.appendChild(script);
     }
+
+    // Injection de styles personnalisés pour l'animation douce
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @keyframes subtleBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      .animate-subtle-bounce {
+        animation: subtleBounce 2s infinite ease-in-out;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      if(document.head.contains(style)) document.head.removeChild(style);
+    };
   }, []);
 
   // Fermeture du dropdown au clic extérieur
@@ -93,8 +111,13 @@ export default function App() {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '' }]);
         
+        // Activer uniquement la bulle d'aide pour le sentiment
         setShowSentimentHint(true);
-        setTimeout(() => setShowSentimentHint(false), 3500); 
+        
+        // La masquer après 5 secondes
+        setTimeout(() => {
+            setShowSentimentHint(false);
+        }, 5000); 
       }
       setCurrentStartupInput('');
       setShowDropdown(false);
@@ -156,7 +179,7 @@ export default function App() {
                       body: JSON.stringify(singlePayload)
                   });
                   
-                  await new Promise(r => setTimeout(r, 150)); // Petite pause
+                  await new Promise(r => setTimeout(r, 150)); // Petite pause anti-spam
               }
           } else {
               // Envoi unique pour le NON
@@ -270,16 +293,35 @@ export default function App() {
                 <div className="flex items-center justify-between mb-3">
                     <span className="font-bold text-gray-800 truncate">{s.name}</span>
                     <div className="flex items-center gap-2 relative">
+                        {/* BOUTON AVEC MISE EN VALEUR ET BULLE */}
                         <div className="relative">
-                            <button onClick={() => cycleSentiment(i)} className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors ring-2 ring-purple-100 ring-offset-1">{s.sentiment}</button>
+                            <button 
+                                onClick={() => cycleSentiment(i)} 
+                                className="bg-gray-50 hover:bg-gray-100 px-3 py-1 rounded-lg text-lg border border-gray-200 transition-colors ring-2 ring-purple-100 ring-offset-1"
+                            >
+                                {s.sentiment}
+                            </button>
+                            {/* BULLE D'AIDE EPHEMERE */}
                             {showSentimentHint && i === selectedStartups.length - 1 && (
-                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">Tapez pour changer !<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div></div>
+                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                                    <div className="bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap animate-subtle-bounce relative">
+                                        Tapez pour changer !
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
+                                    </div>
+                                </div>
                             )}
                         </div>
                         <button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button>
                     </div>
                 </div>
-                <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div><textarea value={s.comment} onChange={(e) => updateComment(i, e.target.value)} placeholder="Commentaire..." className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" /></div>
+                <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div>
+                  <textarea 
+                    value={s.comment} 
+                    onChange={(e) => updateComment(i, e.target.value)} 
+                    placeholder='Commentaire (ex: "On travaille déjà avec eux", "En discussion", "Au point mort"...)' 
+                    className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" 
+                  />
+                </div>
               </div>
             ))}
             {selectedStartups.length === 0 && <span className="text-gray-400 italic text-sm text-center py-8 block bg-gray-50 rounded-xl border border-dashed border-gray-200">Ajoute une startup ci-dessous...</span>}
@@ -289,10 +331,31 @@ export default function App() {
             <div className="mb-2"><label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Ajouter une Startup</label></div>
             <div className="flex gap-2 relative">
               <div className="relative flex-1">
-                <input type="text" value={currentStartupInput} onChange={(e) => { setCurrentStartupInput(e.target.value); setShowDropdown(true); }} onFocus={() => setShowDropdown(true)} onKeyDown={(e) => e.key === 'Enter' && addStartup()} className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" placeholder="Rechercher..." />
-                {showDropdown && (
+                <input 
+                    type="text" 
+                    value={currentStartupInput} 
+                    onChange={(e) => {
+                      setCurrentStartupInput(e.target.value);
+                      setShowDropdown(true);
+                    }}
+                    onFocus={() => setShowDropdown(true)}
+                    onKeyDown={(e) => e.key === 'Enter' && addStartup()} 
+                    className="w-full bg-gray-50 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all" 
+                    placeholder="Rechercher..." 
+                />
+                
+                {/* DROPDOWN LIST */}
+                {showDropdown && filteredStartups.length > 0 && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
-                    {filteredStartups.length > 0 ? filteredStartups.map((s, i) => ( <li key={i} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0 text-gray-700" onClick={() => addStartup(s)}>{s}</li> )) : ( <li className="px-4 py-2 text-xs text-gray-400 italic">Aucune correspondance. + pour créer.</li> )}
+                    {filteredStartups.map((s, i) => (
+                      <li 
+                        key={i}
+                        className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm border-b border-gray-50 last:border-0"
+                        onClick={() => addStartup(s)}
+                      >
+                        {s}
+                      </li>
+                    ))}
                   </ul>
                 )}
               </div>

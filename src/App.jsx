@@ -42,11 +42,11 @@ export default function App() {
   const [noCollabReason, setNoCollabReason] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
 
-  // États pour les BESOINS (Nouvelle étape)
+  // États pour les BESOINS (Initialisé à "1" par défaut pour éviter null)
   const [needsDescription, setNeedsDescription] = useState('');
-  const [needsCriticality, setNeedsCriticality] = useState(null);
+  const [needsCriticality, setNeedsCriticality] = useState("1"); // Valeur par défaut "1" (Texte)
   
-  // État global pour savoir si on a collaboré ou non (pour le saveEntry final)
+  // État global pour savoir si on a collaboré ou non
   const [hasCollaborated, setHasCollaborated] = useState(false);
 
   // Utilisation directe de la liste statique
@@ -120,13 +120,8 @@ export default function App() {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '' }]);
         
-        // Activer uniquement la bulle d'aide pour le sentiment
         setShowSentimentHint(true);
-        
-        // La masquer après 5 secondes
-        setTimeout(() => {
-            setShowSentimentHint(false);
-        }, 5000); 
+        setTimeout(() => setShowSentimentHint(false), 5000); 
       }
       setCurrentStartupInput('');
       setShowDropdown(false);
@@ -154,9 +149,12 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE DIRECTE VERS MAKE (NO FIREBASE) ---
+  // --- SAUVEGARDE DIRECTE VERS MAKE ---
   const saveEntry = async () => {
     setIsSubmitting(true);
+
+    // Préparation du niveau de criticité (Force String "1", "2", "3")
+    const safeNeedsLevel = needsCriticality ? String(needsCriticality) : "1";
 
     const basePayload = {
       firstName: user.firstName,
@@ -165,9 +163,9 @@ export default function App() {
       collaborated: hasCollaborated,
       reason: hasCollaborated ? null : noCollabReason,
       reasonDetails: hasCollaborated ? null : otherReasonText,
-      // Nouveaux champs besoins
-      needs_desc: needsDescription,
-      needs_level: needsCriticality, // C'est maintenant un texte ("Faible", "Moyen", "Urgent")
+      // Champs besoins (avec valeurs sécurisées)
+      needs_desc: needsDescription || "", 
+      needs_level: safeNeedsLevel,
       
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
@@ -230,7 +228,7 @@ export default function App() {
       setNoCollabReason('');
       setOtherReasonText('');
       setNeedsDescription('');
-      setNeedsCriticality(null);
+      setNeedsCriticality("1"); // Reset à "1"
       setHasCollaborated(false);
       setStep('login'); 
   };
@@ -403,9 +401,9 @@ export default function App() {
                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Niveau de criticité</label>
                  <div className="grid grid-cols-3 gap-3">
                     {[
-                        { val: "Faible", label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
-                        { val: "Moyen", label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
-                        { val: "Urgent", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
+                        { val: "1", label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
+                        { val: "2", label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
+                        { val: "3", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
                     ].map((opt) => (
                         <button
                             key={opt.val}
@@ -424,7 +422,7 @@ export default function App() {
         </div>
 
         <div className="mt-auto pt-6">
-            <Button onClick={() => saveEntry(hasCollaborated, selectedStartups)} className="w-full" loading={isSubmitting}>
+            <Button onClick={() => saveEntry()} className="w-full" loading={isSubmitting}>
                 Envoyer
             </Button>
             <button onClick={() => setStep(hasCollaborated ? 'details' : 'reason')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button>

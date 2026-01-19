@@ -20,8 +20,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
   const variants = {
     primary: "bg-black text-white hover:bg-gray-800",
     secondary: "bg-white text-black border border-gray-200 hover:bg-gray-50",
-    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none",
-    orange: "bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200" // Nouveau variant
+    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none"
   };
   return (
     <button onClick={onClick} disabled={disabled || loading} className={`${baseStyle} ${variants[variant]} ${disabled || loading ? disabledStyle : ''} ${className}`}>
@@ -43,9 +42,9 @@ export default function App() {
   const [noCollabReason, setNoCollabReason] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
 
-  // États pour les BESOINS (Initialisé à "1" par défaut pour éviter null)
+  // États pour les BESOINS (Initialisé à "Faible" par défaut)
   const [needsDescription, setNeedsDescription] = useState('');
-  const [needsCriticality, setNeedsCriticality] = useState("1"); // Valeur par défaut "1" (Texte)
+  const [needsCriticality, setNeedsCriticality] = useState("Faible"); 
   
   // État global pour savoir si on a collaboré ou non
   const [hasCollaborated, setHasCollaborated] = useState(false);
@@ -159,9 +158,10 @@ export default function App() {
   const saveEntry = async (forceNoNeeds = false) => {
     setIsSubmitting(true);
 
-    // Préparation des données "Besoins" : si forceNoNeeds est vrai (bouton orange), on vide ces champs
+    // Préparation des données "Besoins" 
     const finalNeedsDesc = forceNoNeeds ? "" : (needsDescription || "");
-    const finalNeedsLevel = forceNoNeeds ? "1" : (needsCriticality ? String(needsCriticality) : "1");
+    // FIX: Envoi des valeurs textuelles exactes attendues par Notion
+    const finalNeedsLevel = forceNoNeeds ? "Pas de besoin" : (needsCriticality || "Faible");
 
     const basePayload = {
       firstName: user.firstName,
@@ -235,7 +235,7 @@ export default function App() {
       setNoCollabReason('');
       setOtherReasonText('');
       setNeedsDescription('');
-      setNeedsCriticality("1"); // Reset à "1"
+      setNeedsCriticality("Faible"); // Reset à "Faible"
       setHasCollaborated(false);
       setStep('login'); 
   };
@@ -409,9 +409,9 @@ export default function App() {
                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Niveau de criticité</label>
                  <div className="grid grid-cols-3 gap-3">
                     {[
-                        { val: "1", label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
-                        { val: "2", label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
-                        { val: "3", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
+                        { val: "Faible", label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
+                        { val: "Moyen", label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
+                        { val: "Urgent", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
                     ].map((opt) => (
                         <button
                             key={opt.val}

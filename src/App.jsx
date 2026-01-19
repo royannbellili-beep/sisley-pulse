@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
@@ -41,6 +41,13 @@ export default function App() {
   // États pour le "NON" (Raison)
   const [noCollabReason, setNoCollabReason] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
+
+  // États pour les BESOINS (Nouvelle étape)
+  const [needsDescription, setNeedsDescription] = useState('');
+  const [needsCriticality, setNeedsCriticality] = useState(null);
+  
+  // État global pour savoir si on a collaboré ou non (pour le saveEntry final)
+  const [hasCollaborated, setHasCollaborated] = useState(false);
 
   // Utilisation directe de la liste statique
   const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
@@ -97,8 +104,10 @@ export default function App() {
     setSwipeDirection(direction);
     setTimeout(() => { 
         if (direction === 'left') { 
+            setHasCollaborated(false);
             setStep('reason'); 
         } else { 
+            setHasCollaborated(true);
             setStep('details'); 
         } 
         setSwipeDirection(null); 
@@ -146,25 +155,29 @@ export default function App() {
   };
 
   // --- SAUVEGARDE DIRECTE VERS MAKE (NO FIREBASE) ---
-  const saveEntry = async (collaborated, startupsList) => {
+  const saveEntry = async () => {
     setIsSubmitting(true);
 
     const basePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
       userDisplay: `${user.firstName} ${user.lastName}`,
-      collaborated: collaborated,
-      reason: collaborated ? null : noCollabReason,
-      reasonDetails: collaborated ? null : otherReasonText,
+      collaborated: hasCollaborated,
+      reason: hasCollaborated ? null : noCollabReason,
+      reasonDetails: hasCollaborated ? null : otherReasonText,
+      // Nouveaux champs besoins
+      needs_desc: needsDescription,
+      needs_level: needsCriticality,
+      
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
     };
 
     try {
       if (NOTION_WEBHOOK_URL) {
-          if (collaborated && startupsList.length > 0) {
+          if (hasCollaborated && selectedStartups.length > 0) {
               // Boucle d'envoi séquentiel pour garantir la création des lignes dans Notion
-              for (const startup of startupsList) {
+              for (const startup of selectedStartups) {
                   const singlePayload = {
                       ...basePayload,
                       name: startup.name, 
@@ -216,6 +229,9 @@ export default function App() {
       setSelectedStartups([]); 
       setNoCollabReason('');
       setOtherReasonText('');
+      setNeedsDescription('');
+      setNeedsCriticality(null);
+      setHasCollaborated(false);
       setStep('login'); 
   };
 
@@ -275,7 +291,7 @@ export default function App() {
             )}
         </div>
         <div className="mt-auto pt-6">
-            <Button onClick={() => saveEntry(false, [])} className="w-full" disabled={!noCollabReason || (noCollabReason === "Autre" && !otherReasonText.trim())} loading={isSubmitting}>Valider</Button>
+            <Button onClick={() => setStep('needs')} className="w-full" disabled={!noCollabReason || (noCollabReason === "Autre" && !otherReasonText.trim())}>Suivant</Button>
             <button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button>
         </div>
       </div>
@@ -293,7 +309,6 @@ export default function App() {
                 <div className="flex items-center justify-between mb-3">
                     <span className="font-bold text-gray-800 truncate">{s.name}</span>
                     <div className="flex items-center gap-2 relative">
-                        {/* BOUTON AVEC MISE EN VALEUR ET BULLE */}
                         <div className="relative">
                             <button 
                                 onClick={() => cycleSentiment(i)} 
@@ -301,7 +316,6 @@ export default function App() {
                             >
                                 {s.sentiment}
                             </button>
-                            {/* BULLE D'AIDE EPHEMERE */}
                             {showSentimentHint && i === selectedStartups.length - 1 && (
                                 <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
                                     <div className="bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap animate-subtle-bounce relative">
@@ -344,7 +358,6 @@ export default function App() {
                     placeholder="Rechercher..." 
                 />
                 
-                {/* DROPDOWN LIST */}
                 {showDropdown && filteredStartups.length > 0 && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
                     {filteredStartups.map((s, i) => (
@@ -363,7 +376,60 @@ export default function App() {
             </div>
           </div>
         </div>
-        <div className="mt-auto pt-4"><Button onClick={() => saveEntry(true, selectedStartups)} className="w-full" disabled={selectedStartups.length === 0} loading={isSubmitting}>Valider</Button><button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button></div>
+        <div className="mt-auto pt-4"><Button onClick={() => setStep('needs')} className="w-full" disabled={selectedStartups.length === 0}>Suivant</Button><button onClick={() => setStep('swipe')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button></div>
+      </div>
+    </ScreenWrapper>
+  );
+
+  // --- ECRAN BESOINS ---
+  if (step === 'needs') return (
+    <ScreenWrapper>
+      <div className="flex-1 flex flex-col p-8">
+        <div className="mb-6">
+            <h2 className="text-2xl font-serif font-bold text-gray-900 mb-2">Un dernier point ? 💡</h2>
+            <p className="text-gray-500 text-sm">Avez-vous d'autres besoins à faire remonter ou sur lesquels vous avez besoin d'aide de l'Open Innovation ?</p>
+        </div>
+
+        <div className="flex-1 space-y-6">
+             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <textarea 
+                    value={needsDescription}
+                    onChange={(e) => setNeedsDescription(e.target.value)}
+                    placeholder="Décrivez votre besoin ici..."
+                    className="w-full bg-gray-50 p-4 text-sm focus:outline-none focus:bg-white min-h-[120px] resize-none"
+                />
+             </div>
+
+             <div className="space-y-3">
+                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Niveau de criticité</label>
+                 <div className="grid grid-cols-3 gap-3">
+                    {[
+                        { val: 1, label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
+                        { val: 2, label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
+                        { val: 3, label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
+                    ].map((opt) => (
+                        <button
+                            key={opt.val}
+                            onClick={() => setNeedsCriticality(opt.val)}
+                            className={`py-3 rounded-lg text-sm font-medium border-2 transition-all ${
+                                needsCriticality === opt.val 
+                                ? opt.color + ' ring-2 ring-offset-1 ring-gray-200' 
+                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
+                            }`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                 </div>
+             </div>
+        </div>
+
+        <div className="mt-auto pt-6">
+            <Button onClick={() => saveEntry(hasCollaborated, selectedStartups)} className="w-full" loading={isSubmitting}>
+                Envoyer
+            </Button>
+            <button onClick={() => setStep(hasCollaborated ? 'details' : 'reason')} className="w-full text-center text-gray-400 text-xs mt-4 hover:text-gray-600">Retour</button>
+        </div>
       </div>
     </ScreenWrapper>
   );

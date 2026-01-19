@@ -20,7 +20,8 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
   const variants = {
     primary: "bg-black text-white hover:bg-gray-800",
     secondary: "bg-white text-black border border-gray-200 hover:bg-gray-50",
-    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none"
+    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none",
+    orange: "bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200" // Nouveau variant
   };
   return (
     <button onClick={onClick} disabled={disabled || loading} className={`${baseStyle} ${variants[variant]} ${disabled || loading ? disabledStyle : ''} ${className}`}>
@@ -120,8 +121,13 @@ export default function App() {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '' }]);
         
+        // Activer uniquement la bulle d'aide pour le sentiment
         setShowSentimentHint(true);
-        setTimeout(() => setShowSentimentHint(false), 5000); 
+        
+        // La masquer après 5 secondes
+        setTimeout(() => {
+            setShowSentimentHint(false);
+        }, 5000); 
       }
       setCurrentStartupInput('');
       setShowDropdown(false);
@@ -150,11 +156,12 @@ export default function App() {
   };
 
   // --- SAUVEGARDE DIRECTE VERS MAKE ---
-  const saveEntry = async () => {
+  const saveEntry = async (forceNoNeeds = false) => {
     setIsSubmitting(true);
 
-    // Préparation du niveau de criticité (Force String "1", "2", "3")
-    const safeNeedsLevel = needsCriticality ? String(needsCriticality) : "1";
+    // Préparation des données "Besoins" : si forceNoNeeds est vrai (bouton orange), on vide ces champs
+    const finalNeedsDesc = forceNoNeeds ? "" : (needsDescription || "");
+    const finalNeedsLevel = forceNoNeeds ? "1" : (needsCriticality ? String(needsCriticality) : "1");
 
     const basePayload = {
       firstName: user.firstName,
@@ -163,9 +170,9 @@ export default function App() {
       collaborated: hasCollaborated,
       reason: hasCollaborated ? null : noCollabReason,
       reasonDetails: hasCollaborated ? null : otherReasonText,
-      // Champs besoins (avec valeurs sécurisées)
-      needs_desc: needsDescription || "", 
-      needs_level: safeNeedsLevel,
+      // Champs besoins
+      needs_desc: finalNeedsDesc, 
+      needs_level: finalNeedsLevel,
       
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
@@ -314,6 +321,7 @@ export default function App() {
                             >
                                 {s.sentiment}
                             </button>
+                            {/* BULLE D'AIDE EPHEMERE */}
                             {showSentimentHint && i === selectedStartups.length - 1 && (
                                 <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
                                     Tapez pour changer !
@@ -422,6 +430,12 @@ export default function App() {
         </div>
 
         <div className="mt-auto pt-6">
+            <button 
+                onClick={() => saveEntry(true)} // forceNoNeeds = true
+                className="w-full py-3 mb-3 rounded-lg text-sm font-bold bg-orange-100 text-orange-600 hover:bg-orange-200 transition-colors"
+            >
+                Pas de besoin à date
+            </button>
             <Button onClick={() => saveEntry()} className="w-full" loading={isSubmitting}>
                 Envoyer
             </Button>

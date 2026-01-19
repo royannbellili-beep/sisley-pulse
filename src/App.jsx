@@ -167,7 +167,7 @@ export default function App() {
       reasonDetails: hasCollaborated ? null : otherReasonText,
       // Nouveaux champs besoins
       needs_desc: needsDescription,
-      needs_level: needsCriticality,
+      needs_level: needsCriticality ? String(needsCriticality) : null, // CORRECTION ICI: On force la conversion en String
       
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')

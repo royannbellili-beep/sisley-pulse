@@ -167,7 +167,7 @@ export default function App() {
       reasonDetails: hasCollaborated ? null : otherReasonText,
       // Nouveaux champs besoins
       needs_desc: needsDescription,
-      needs_level: needsCriticality ? String(needsCriticality) : null, // CORRECTION ICI: On force la conversion en String
+      needs_level: needsCriticality, // C'est maintenant un texte ("Faible", "Moyen", "Urgent")
       
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
@@ -317,11 +317,9 @@ export default function App() {
                                 {s.sentiment}
                             </button>
                             {showSentimentHint && i === selectedStartups.length - 1 && (
-                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-                                    <div className="bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap animate-subtle-bounce relative">
-                                        Tapez pour changer !
-                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
-                                    </div>
+                                <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
+                                    Tapez pour changer !
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
                                 </div>
                             )}
                         </div>
@@ -358,6 +356,7 @@ export default function App() {
                     placeholder="Rechercher..." 
                 />
                 
+                {/* DROPDOWN LIST */}
                 {showDropdown && filteredStartups.length > 0 && (
                   <ul className="absolute z-50 w-full bg-white border border-gray-100 mt-1 rounded-lg shadow-xl max-h-48 overflow-y-auto animate-fade-in">
                     {filteredStartups.map((s, i) => (
@@ -404,9 +403,9 @@ export default function App() {
                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide">Niveau de criticité</label>
                  <div className="grid grid-cols-3 gap-3">
                     {[
-                        { val: 1, label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
-                        { val: 2, label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
-                        { val: 3, label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
+                        { val: "Faible", label: "Faible", color: "bg-green-100 text-green-800 border-green-200" },
+                        { val: "Moyen", label: "Moyen", color: "bg-orange-100 text-orange-800 border-orange-200" },
+                        { val: "Urgent", label: "Urgent", color: "bg-red-100 text-red-800 border-red-200" }
                     ].map((opt) => (
                         <button
                             key={opt.val}

@@ -263,10 +263,9 @@ export default function App() {
           <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Nom (ex: Martin)" />
           {/* NOUVEAU CHAMP EMAIL */}
           <div className="relative">
-            <input type="email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black pl-7" placeholder="Email (facultatif)" />
+            <input type="email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black pl-7" placeholder="Email" />
             <Mail className="absolute left-0 top-3 text-gray-400" size={18} />
           </div>
-          <p className="text-[10px] text-gray-400 mt-1 italic">*Renseignez votre email pour recevoir les invitations agenda automatiquement.</p>
           <Button onClick={handleLogin} className="w-full mt-8">Commencer</Button>
         </form>
       </div>

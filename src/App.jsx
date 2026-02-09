@@ -1,12 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle, AlertTriangle, ChevronDown, Calendar, Mail } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
 // URL Webhook Écriture (Votre scénario Make)
 const NOTION_WEBHOOK_URL = "https://hook.eu2.make.com/kcv8aaztdoaapiwwhwjfovgl4tc52mvo"; 
 
-// --- 2. LISTE COMPLETE DES STARTUPS (AUTO-COMPLÉTION) ---
+// --- 2. CONSTANTES ---
+const ACTIONS = [
+  "Pas d'action requise",
+  "🗓️ Rencontre à caler",
+  "🎤 Présentation Direction",
+  "🧪 Demander une démo",
+  "🤝 Introduction à faire",
+  "Autre" // Nouvelle option
+];
+
 const STATIC_STARTUPS = [
   "Datawork", "EnHywhere", "Trivia ", "Opole Panel Wiatrowy", "IDservice", "AXOMEGA-CARE", "COACH FOR EYES", "AR[t] Studio", "Japet", "Stockly", "Gino LegalTech", "Ohz studio", "Excense", "Lucy Mobility ", "HautAI", "Duo J&J", "Lootorium", "MOLD.PARIS", "Valterio", "Rota", "DataThings SA", "KLONA", "Action Positive (marque commercialisée Linka)", "Relicta Srl", "Corecyclage", "RSE Challenge", "GIOZA", "supermonday", "ROI Media", "Woola", "Vox Illud", "Au revoir carbone (RSE Challenge)", "Z#bre", "Fairspace", "NeuralTeks", "My Smart Journey", "Holoffice", "Whoz", "B.mind", "RTCX", "Charlie", "Ava", "Contour (Deleo) ", "iStaging", "Takeoff Xp", "Freschcup", "MaquillAR Studio", "Safecube", "Novelab", "Lucibel", "Artify", "Nawa technologies", "Yxir (Groupe EDF)", "Skiils", "Controlpack", "Asteria", "Tale of Data", "Sycon", "Novecal", "Renature (ex Tannerie Végétale)", "Hapster", "Sootenir", "Circularplace", "PulpoAR", "WE NETWORK", "RHEONIS", "Curebot", "Astora", "Sindup", "Iroony", "Semana", "AdScout.io", "Echo Analytics", "Rierino", "Vaibe", "Rocketium", "Dowino", "Enso", "SenseBioTek", "Loyale", "Hypotenuse AI", "Bounce", "PeakMetrics", "OnFabric", "Marelle Studio", "Scon AI", "Bibak", "Abyssale", "xTool", "Evelab Insight", "Notify", "Agence Les Initiés", "Facelift", "Woorikidsplus", "Muzard", "Center AI", "Aiphrodite", "LOOKALIKE SRL", "My S Life", "Rewake", "Lilaea", "Arxy", "Greenspark", "Yogi", "Storyly", "Celtra", "LiveCrew", "Achille AI", "Gocertify", "Kahoona", "InnAIO", "Kiud", "Talon.One", "The Forecasting Company", "Fairpatterns", "Didask", "Social+", "Azoma", "Oraclase.ai", "Manual.to", "Ask Monk", "Hippolyte.ai", "Bryanthings", "Samplistick", "HABS", "Chitose Matsuri", "Artpoint", "Red Mimicry", "Elora", "Unitee", "Snap Discovery", "Aivar", "Chat3D", "Sharebox. Co.", "Airudi", "Visualsyn (Glinda)", "Xitst", "Mini Green Power", "Understand tech", "Heralbony", "Twinit", "Clésame", "Creatant", "Deepixel (StyleAR)", "Celestory", "Mocli", "Good on you", "Go Ava", "Intuive", "Stern Tech", "Fairly Made", "Causal Foundry", "Marketon", "Made with intent", "Frontnow", "Syncly", "Vizit", "Fero", "Attentive", "Botify", "Alhena", "1440", "Dialog AI", "Crwizard", "Hypothenuse AI", "Vanish Standard", "Dassault Systèmes", "OWI", "Konatus", "Kiosk", "Data4job", "Nectar Social", "Veesual", "Infios", "Glassix", "Tagether", "Secret View", "Aura Vision", "Bria Ai", "DinMo", "Talkable", "Nimble", "Planet Purpose", "Visionairy ", "Monstock", "Trurating", "Eagle Eye", "Axonify", "Paytweak", "Cleed.ai", "Trybu", "Advertima", "Ealyx", "Yofi", "Jukee", "Twini.ai", "Airia", "Fanfare", "Doofinder", "Metreecs", "Voicebox (VBX AI)", "Nedap", "Curated4you", "Retail Reload", "Power.XYZ", "New Black", "Urbyn", "Footprints AI", "Niftmint", "Les Martines", "Pandobac", "WizyVision", "Trajaan", "Idyllic", "Airthings", "French Touch Factory", "Ouidrop", "Edzo", "Unless", "Jeen", "WeNow", "Uneole", "Affluences", "Algo’tech vision", "Qovoltis", "MEAL CANTEEN", "Human innovate", "Digifood", "ProGlove", "Clutch Rayn Production", "SKILLEO", "Popmii", "Carbonable", "Green technologies", "Quobly", "LightStim", "Reddot", "SAMP", "Pochet", "Skilleo", "MYOTHESIS ", "Astreva", "Yaggo", "Reelevant", "CreaKnow", "Canaery", "ANGELIA", "Tim sports ", "Airudit", "XR+", "Picomto", "Bodyguard", "Naked Energy", "MOFFI", "Coxibiz", "Greez", "Zenithpaths", "Vertile", "Lixo", "Retail VR", "Find & Order", "Talentry", "Wats", "Cosmetange", "Clientela", "Fintecture ", "Cesam", "Kataba", "Lucéat", "Les bois", "Stuart", "Aprex", "Ubigreen", "Beemetrix", "Selego", "Lyyti", "5discovery", "Opscidia", "Circularise ", "4InData", "Filament’OR", "Voltyo", "Engagement & Performance (Powerteam)", "Free-visit", "Napta ", "4Gift", "Physioquanta", "Les Nouveaux Géants ", "TKM - Technology Knowledge Metrix", "Bloom media", "Corpoderm", "Flowlity", "OliKrom", "Adrenalead ", "Unaöd", "Bohémienne", "Uptale", "ShareGroop", "MarqVision", "AAMS", "Maia-Be", "Advanced Track & Trace", "CENTILOC", "Skeepers (ex : Toky Woky)", "Zeplug", "KEMIWATT", "Aquaphys", "Ctrl S", "Spinalcom", "Skopai", "Kiosk-it", "Smartback", "Use insider", "HappyTrack", "Neurochain ", "Maison Colette", "Dronotec", "Sourcemap", "Akeen", "Treeseve", "BioHive innovations", "Sweetch Energy", "Ottobock", "All virtual", "Beesk", "Recnorec", "ABTasty (ex Dotaki)", "Kalima Blockchain", "Simbel", "K-process", "Bureau Bien Vu ", "Alterrae", "Mercaux", "Bioxegy", "Yinfy ⇒ Hair analyser & autres recherches", "VIDETICS", "E-VIRTUALITY", "Eclos Production", "Love your waste ", "NextUser", "Adyen", "Pollen AM", "Ergosanté", "Neobrain", "Solvenn ", "Stendo", "ChatLabs", "La vitre ", "Thank you and welcome", "Redflow", "EXO data", "http://4.builders", "Cosmecode", "Bonanza", "IOGA", "INVAIST", "Composia", "VitrumGlass", "Opack (=Le Petit Pack)", "Omi", "Trayvisor ", "Beautigloo", "SCorp-io", "Reetags", "DIAGRAMS Technologies", "Byzance", "Technis", "SolarGaps", "Skoleom", "InnovFast (Move2.digital)", "Jobradio", "Pi électronique ", "Ecofrugal Project SAS", "Tamplo", "Algentech", "PENBOX ", "Brandaudio", "Neoplants", "Goshaba", "Vely Velo ", "Osol", "Elocance", "Sociabble", "Bloom Biorenewables", "Magma Seaweed", "Gimii", "OPEN MIND Neurotechnologies", "ABTasty", "NeoDeal", "Questel", "Brandquad", "Oppscience", "My Job Glasses", "Hydrafacial", "Cognixion", "Spega (Pollogen)", "DecisionBrain", "Tribalee", "Forinov", "Butterfly XR Studio", "COMPACK", "DRIME", "Supermood", "Equanimity", "MerciYanis", "Ubu", "Workelo", "BioPhys", "FACILITI", "Ethypik", "Wind my roof", "Lactips", "Holis", "Metrikus", "UBBY ENERGY", "Releaf Paper", "Cosfibel ⇒ Projet diffuseur de parfum", "UMI", "COEXEL", "Wonderflow", "Eyesee", "Biomemory", "Groupe Altera", "Civiliz", "Emye", "Petrel", "Daaddo", "Linaé", "Aquila Data", "Orijinal", "VizioSense", "UP&CHARGE", "The WIW", "Self Care One", "Potions (maintenant ABtasty)", "Innovorder", "WATT ", "Overlap (= SkyBoy)", "Typeface", "N2F", "Toolearn", "HBP Group", "Beink Dream", "Circul'egg", "Arenzi", "German Bionic", "Seturon", "Ecklo", "Mentalista", "Nuvei", "Bioptimus", "Dataiads", "NEODOC", "Cohort", "Innov&sea", "Vacufit (Celluma)", "Covalba", "DWS", "EKOO", "Simplicité", "Fruggr", "Hypervision Technology ", "Qevlar AI", "ibridge people", "Sweep", "Aive", "LIVSPOT", "Poolp", "Metagora.tech", "Q°EMOTION FRANCE SAS", "Yourban ai", "Show me the REX", "D.Terre", "Upsellr", "Loopipak", "Deepreach", "Getinside", "Yampa", "OOTENTIK", "Instaply", "PAARLY", "Live Vendor", "Azira", "Market Espace", "Argos Metrics", "Albatross AI", "NetUp", "Skiptax", "Crownpeak (fredhopper solution)", "Algolia", "Ircam - Amplify", "Reelast", "Planeezy", "Pulp'in"
 ];
@@ -20,7 +29,8 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
   const variants = {
     primary: "bg-black text-white hover:bg-gray-800",
     secondary: "bg-white text-black border border-gray-200 hover:bg-gray-50",
-    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none"
+    ghost: "bg-transparent text-gray-500 hover:text-black shadow-none",
+    orange: "bg-orange-100 text-orange-600 border border-orange-200 hover:bg-orange-200"
   };
   return (
     <button onClick={onClick} disabled={disabled || loading} className={`${baseStyle} ${variants[variant]} ${disabled || loading ? disabledStyle : ''} ${className}`}>
@@ -32,34 +42,27 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 // --- 4. APP PRINCIPALE ---
 export default function App() {
   const [step, setStep] = useState('login'); 
-  const [user, setUser] = useState({ firstName: '', lastName: '' });
+  const [user, setUser] = useState({ firstName: '', lastName: '', email: '' });
   const [swipeDirection, setSwipeDirection] = useState(null); 
   
   const [selectedStartups, setSelectedStartups] = useState([]);
   const [currentStartupInput, setCurrentStartupInput] = useState('');
   
-  // États pour le "NON" (Raison)
   const [noCollabReason, setNoCollabReason] = useState('');
   const [otherReasonText, setOtherReasonText] = useState('');
 
-  // États pour les BESOINS (Initialisé à "Faible" par défaut)
   const [needsDescription, setNeedsDescription] = useState('');
   const [needsCriticality, setNeedsCriticality] = useState("Faible"); 
   
-  // État global pour savoir si on a collaboré ou non
   const [hasCollaborated, setHasCollaborated] = useState(false);
-
-  // Utilisation directe de la liste statique
   const [startupList, setStartupList] = useState(STATIC_STARTUPS); 
   
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
   
-  // États pour les bulles d'aide éphémères
   const [showSentimentHint, setShowSentimentHint] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-style (Tailwind) & Custom Animations
   useEffect(() => {
     if (!document.getElementById('tailwind-cdn')) {
       const script = document.createElement('script');
@@ -68,7 +71,6 @@ export default function App() {
       document.head.appendChild(script);
     }
 
-    // Injection de styles personnalisés pour l'animation douce
     const style = document.createElement('style');
     style.innerHTML = `
       @keyframes subtleBounce {
@@ -86,7 +88,6 @@ export default function App() {
     };
   }, []);
 
-  // Fermeture du dropdown au clic extérieur
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -97,7 +98,6 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownRef]);
 
-  // Actions
   const handleLogin = (e) => { e.preventDefault(); if (user.firstName && user.lastName) setStep('swipe'); };
   
   const handleSwipe = (direction) => {
@@ -118,12 +118,9 @@ export default function App() {
     const nameToAdd = nameOverride || currentStartupInput.trim();
     if (nameToAdd) {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
-        setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '' }]);
-        
-        // Activer uniquement la bulle d'aide pour le sentiment
+        // Initialisation de l'action par défaut à "Pas d'action requise" et customAction vide
+        setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '', action: "Pas d'action requise", customAction: '' }]);
         setShowSentimentHint(true);
-        
-        // La masquer après 5 secondes
         setTimeout(() => {
             setShowSentimentHint(false);
         }, 5000); 
@@ -138,7 +135,6 @@ export default function App() {
     const nextIndex = (SENTIMENTS.indexOf(newStartups[index].sentiment) + 1) % SENTIMENTS.length;
     newStartups[index].sentiment = SENTIMENTS[nextIndex];
     setSelectedStartups(newStartups);
-    
     if (showSentimentHint) setShowSentimentHint(false);
   };
 
@@ -148,32 +144,42 @@ export default function App() {
     setSelectedStartups(newStartups);
   };
 
+  const updateAction = (index, actionValue) => {
+    const newStartups = [...selectedStartups];
+    newStartups[index].action = actionValue;
+    // Reset customAction si on change d'option (sauf si on revient sur Autre, on garde le texte, mais par sécurité on peut laisser)
+    if (actionValue !== 'Autre') newStartups[index].customAction = '';
+    setSelectedStartups(newStartups);
+  };
+
+  const updateCustomAction = (index, text) => {
+    const newStartups = [...selectedStartups];
+    newStartups[index].customAction = text;
+    setSelectedStartups(newStartups);
+  };
+
   const removeStartup = (index) => {
     const newStartups = [...selectedStartups];
     newStartups.splice(index, 1);
     setSelectedStartups(newStartups);
   };
 
-  // --- SAUVEGARDE DIRECTE VERS MAKE ---
   const saveEntry = async (forceNoNeeds = false) => {
     setIsSubmitting(true);
 
-    // Préparation des données "Besoins" 
     const finalNeedsDesc = forceNoNeeds ? "" : (needsDescription || "");
-    // FIX: Envoi des valeurs textuelles exactes attendues par Notion
     const finalNeedsLevel = forceNoNeeds ? "Pas de besoin" : (needsCriticality || "Faible");
 
     const basePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
+      email: user.email, 
       userDisplay: `${user.firstName} ${user.lastName}`,
       collaborated: hasCollaborated,
       reason: hasCollaborated ? null : noCollabReason,
       reasonDetails: hasCollaborated ? null : otherReasonText,
-      // Champs besoins
       needs_desc: finalNeedsDesc, 
       needs_level: finalNeedsLevel,
-      
       timestamp: new Date().toISOString(),
       readableDate: new Date().toLocaleDateString('fr-FR')
     };
@@ -181,39 +187,42 @@ export default function App() {
     try {
       if (NOTION_WEBHOOK_URL) {
           if (hasCollaborated && selectedStartups.length > 0) {
-              // Boucle d'envoi séquentiel pour garantir la création des lignes dans Notion
               for (const startup of selectedStartups) {
+                  // Construction de l'action finale : soit la valeur standard, soit "Autre : [texte]"
+                  const finalAction = startup.action === "Autre" 
+                    ? (startup.customAction ? `Autre: ${startup.customAction}` : "Autre") 
+                    : startup.action;
+
                   const singlePayload = {
                       ...basePayload,
                       name: startup.name, 
                       sentiment: startup.sentiment,
                       comment: startup.comment,
+                      action: finalAction, 
                       startups: [startup] 
                   };
-                  
                   await fetch(NOTION_WEBHOOK_URL, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(singlePayload)
                   });
-                  
-                  await new Promise(r => setTimeout(r, 150)); // Petite pause anti-spam
+                  await new Promise(r => setTimeout(r, 150));
               }
           } else {
-              // Envoi unique pour le NON
               const reasonComment = noCollabReason === "Autre" ? otherReasonText : noCollabReason;
               const noCollabPayload = {
                   ...basePayload,
-                  name: "Aucune collaboration", // Remplissage pour éviter les erreurs Make
+                  name: "Aucune collaboration",
                   sentiment: "N/A",
-                  comment: reasonComment, // Raison du refus
+                  comment: reasonComment,
+                  action: "N/A",
                   startups: [{
                       name: "Aucune collaboration",
                       sentiment: "N/A",
-                      comment: reasonComment
+                      comment: reasonComment,
+                      action: "N/A"
                   }]
               };
-
               await fetch(NOTION_WEBHOOK_URL, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -230,12 +239,12 @@ export default function App() {
   };
 
   const resetApp = () => { 
-      setUser({ firstName: '', lastName: '' }); 
+      setUser({ firstName: '', lastName: '', email: '' }); 
       setSelectedStartups([]); 
       setNoCollabReason('');
       setOtherReasonText('');
       setNeedsDescription('');
-      setNeedsCriticality("Faible"); // Reset à "Faible"
+      setNeedsCriticality("Faible");
       setHasCollaborated(false);
       setStep('login'); 
   };
@@ -245,8 +254,6 @@ export default function App() {
     !selectedStartups.some(sel => sel.name === s)
   );
 
-  // --- RENDU ---
-
   if (step === 'login') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col items-center justify-center p-8">
@@ -254,6 +261,12 @@ export default function App() {
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <input type="text" required value={user.firstName} onChange={(e) => setUser({...user, firstName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Prénom (ex: Julie)" />
           <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Nom (ex: Martin)" />
+          {/* NOUVEAU CHAMP EMAIL */}
+          <div className="relative">
+            <input type="email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black pl-7" placeholder="Email (facultatif)" />
+            <Mail className="absolute left-0 top-3 text-gray-400" size={18} />
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1 italic">*Renseignez votre email pour recevoir les invitations agenda automatiquement.</p>
           <Button onClick={handleLogin} className="w-full mt-8">Commencer</Button>
         </form>
       </div>
@@ -321,28 +334,75 @@ export default function App() {
                             >
                                 {s.sentiment}
                             </button>
-                            {/* BULLE D'AIDE EPHEMERE */}
                             {showSentimentHint && i === selectedStartups.length - 1 && (
                                 <div className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap z-20 pointer-events-none">
-                                    Tapez pour changer !
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
+                                    <div className="bg-black text-white text-[10px] px-2 py-1 rounded shadow-lg whitespace-nowrap animate-subtle-bounce relative">
+                                        Tapez pour changer !
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
+                                    </div>
                                 </div>
                             )}
                         </div>
                         <button onClick={() => removeStartup(i)} className="text-gray-300 hover:text-red-500 p-1"><X size={18} /></button>
                     </div>
                 </div>
-                <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div>
-                  <textarea 
-                    value={s.comment} 
-                    onChange={(e) => updateComment(i, e.target.value)} 
-                    placeholder='Commentaire (ex: "On travaille déjà avec eux", "En discussion", "Au point mort"...)' 
-                    className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" 
-                  />
+                <div className="space-y-2">
+                    <div className="relative"><div className="absolute top-3 left-3 text-gray-400"><MessageSquare size={14} /></div>
+                      <textarea 
+                        value={s.comment} 
+                        onChange={(e) => updateComment(i, e.target.value)} 
+                        placeholder='Commentaire (ex: "On travaille déjà avec eux", "En discussion", "Au point mort"...)' 
+                        className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" 
+                      />
+                    </div>
+                    {/* SELECTEUR D'ACTION MIS EN VALEUR */}
+                    <div className="mt-3">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Quelle suite donner ?</label>
+                        <div className="relative">
+                            <div className={`absolute top-1/2 -translate-y-1/2 left-3 ${s.action !== "Pas d'action requise" ? 'text-purple-600' : 'text-gray-400'}`}>
+                                <Calendar size={16} />
+                            </div>
+                            <select 
+                                value={s.action} 
+                                onChange={(e) => updateAction(i, e.target.value)}
+                                className={`w-full border rounded-xl py-3 pl-10 pr-8 text-sm focus:outline-none appearance-none cursor-pointer transition-all duration-200 ${
+                                    s.action !== "Pas d'action requise" 
+                                    ? 'bg-purple-50 border-purple-200 text-purple-900 font-bold shadow-sm' 
+                                    : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+                                }`}
+                            >
+                                {ACTIONS.map(action => (
+                                    <option key={action} value={action}>{action}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${s.action !== "Pas d'action requise" ? 'text-purple-400' : 'text-gray-400'}`} size={16} />
+                        </div>
+                        {/* CHAMP "AUTRE" - APPARAIT UNIQUEMENT SI "Autre" est sélectionné */}
+                        {s.action === "Autre" && (
+                          <div className="mt-2 animate-fade-in">
+                            <input 
+                              type="text" 
+                              value={s.customAction} 
+                              onChange={(e) => updateCustomAction(i, e.target.value)} 
+                              placeholder="Précisez l'action souhaitée..." 
+                              className="w-full bg-purple-50 border border-purple-200 rounded-lg py-2 px-3 text-xs text-purple-900 focus:outline-none focus:bg-white focus:border-purple-300 transition-all" 
+                              autoFocus
+                            />
+                          </div>
+                        )}
+                    </div>
                 </div>
               </div>
             ))}
-            {selectedStartups.length === 0 && <span className="text-gray-400 italic text-sm text-center py-8 block bg-gray-50 rounded-xl border border-dashed border-gray-200">Ajoute une startup ci-dessous...</span>}
+            {/* Empty state */}
+            {selectedStartups.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-8 opacity-60 text-center animate-fade-in">
+                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-2">
+                        <ArrowRight className="rotate-90 text-gray-300" size={20} />
+                    </div>
+                    <p className="text-sm text-gray-400">Utilisez la recherche ci-dessous pour ajouter une startup</p>
+                </div>
+            )}
           </div>
           
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6" ref={dropdownRef}>
@@ -386,7 +446,6 @@ export default function App() {
     </ScreenWrapper>
   );
 
-  // --- ECRAN BESOINS ---
   if (step === 'needs') return (
     <ScreenWrapper>
       <div className="flex-1 flex flex-col p-8">
@@ -431,7 +490,7 @@ export default function App() {
 
         <div className="mt-auto pt-6">
             <button 
-                onClick={() => saveEntry(true)} // forceNoNeeds = true
+                onClick={() => saveEntry(true)} 
                 className="w-full py-3 mb-3 rounded-lg text-sm font-bold bg-orange-100 text-orange-600 hover:bg-orange-200 transition-colors"
             >
                 Pas de besoin à date

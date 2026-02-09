@@ -42,7 +42,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 // --- 4. APP PRINCIPALE ---
 export default function App() {
   const [step, setStep] = useState('login'); 
-  const [user, setUser] = useState({ firstName: '', lastName: '', email: '' });
+  const [user, setUser] = useState({ firstName: '', lastName: '' });
   const [swipeDirection, setSwipeDirection] = useState(null); 
   
   const [selectedStartups, setSelectedStartups] = useState([]);
@@ -118,7 +118,7 @@ export default function App() {
     const nameToAdd = nameOverride || currentStartupInput.trim();
     if (nameToAdd) {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
-        // Initialisation de l'action par défaut à "Pas d'action requise" et customAction vide
+        // Ajout de "action" et "customAction" par défaut
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '', action: "Pas d'action requise", customAction: '' }]);
         setShowSentimentHint(true);
         setTimeout(() => {
@@ -147,7 +147,6 @@ export default function App() {
   const updateAction = (index, actionValue) => {
     const newStartups = [...selectedStartups];
     newStartups[index].action = actionValue;
-    // Reset customAction si on change d'option (sauf si on revient sur Autre, on garde le texte, mais par sécurité on peut laisser)
     if (actionValue !== 'Autre') newStartups[index].customAction = '';
     setSelectedStartups(newStartups);
   };
@@ -173,7 +172,6 @@ export default function App() {
     const basePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
-      email: user.email, 
       userDisplay: `${user.firstName} ${user.lastName}`,
       collaborated: hasCollaborated,
       reason: hasCollaborated ? null : noCollabReason,
@@ -188,7 +186,7 @@ export default function App() {
       if (NOTION_WEBHOOK_URL) {
           if (hasCollaborated && selectedStartups.length > 0) {
               for (const startup of selectedStartups) {
-                  // Construction de l'action finale : soit la valeur standard, soit "Autre : [texte]"
+                  // Construction de l'action finale (gestion du "Autre")
                   const finalAction = startup.action === "Autre" 
                     ? (startup.customAction ? `Autre: ${startup.customAction}` : "Autre") 
                     : startup.action;
@@ -198,7 +196,7 @@ export default function App() {
                       name: startup.name, 
                       sentiment: startup.sentiment,
                       comment: startup.comment,
-                      action: finalAction, 
+                      action: finalAction, // Envoi de l'action
                       startups: [startup] 
                   };
                   await fetch(NOTION_WEBHOOK_URL, {
@@ -239,7 +237,7 @@ export default function App() {
   };
 
   const resetApp = () => { 
-      setUser({ firstName: '', lastName: '', email: '' }); 
+      setUser({ firstName: '', lastName: '' }); 
       setSelectedStartups([]); 
       setNoCollabReason('');
       setOtherReasonText('');
@@ -261,11 +259,6 @@ export default function App() {
         <form onSubmit={handleLogin} className="w-full space-y-4">
           <input type="text" required value={user.firstName} onChange={(e) => setUser({...user, firstName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Prénom (ex: Julie)" />
           <input type="text" required value={user.lastName} onChange={(e) => setUser({...user, lastName: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black" placeholder="Nom (ex: Martin)" />
-          {/* NOUVEAU CHAMP EMAIL */}
-          <div className="relative">
-            <input type="email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} className="w-full border-b-2 border-gray-200 py-2 text-lg focus:outline-none focus:border-black pl-7" placeholder="Email" />
-            <Mail className="absolute left-0 top-3 text-gray-400" size={18} />
-          </div>
           <Button onClick={handleLogin} className="w-full mt-8">Commencer</Button>
         </form>
       </div>
@@ -354,7 +347,7 @@ export default function App() {
                         className="w-full bg-gray-50 border border-gray-100 rounded-lg py-2 pl-9 pr-3 text-xs text-gray-700 focus:outline-none focus:bg-white focus:border-gray-300 transition-all resize-none h-16" 
                       />
                     </div>
-                    {/* SELECTEUR D'ACTION MIS EN VALEUR */}
+                    {/* SELECTEUR D'ACTION RESTAURÉ */}
                     <div className="mt-3">
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Quelle suite donner ?</label>
                         <div className="relative">
@@ -376,7 +369,7 @@ export default function App() {
                             </select>
                             <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${s.action !== "Pas d'action requise" ? 'text-purple-400' : 'text-gray-400'}`} size={16} />
                         </div>
-                        {/* CHAMP "AUTRE" - APPARAIT UNIQUEMENT SI "Autre" est sélectionné */}
+                        {/* CHAMP "AUTRE" */}
                         {s.action === "Autre" && (
                           <div className="mt-2 animate-fade-in">
                             <input 

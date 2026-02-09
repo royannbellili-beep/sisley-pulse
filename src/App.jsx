@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle, AlertTriangle, ChevronDown, Calendar, Mail } from 'lucide-react';
+import { Heart, X, Briefcase, ArrowRight, Loader2, MessageSquare, Lock, CheckCircle, AlertCircle, AlertTriangle, ChevronDown, Calendar } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 
@@ -13,7 +13,7 @@ const ACTIONS = [
   "🎤 Présentation Direction",
   "🧪 Demander une démo",
   "🤝 Introduction à faire",
-  "Autre" // Nouvelle option
+  "Autre" 
 ];
 
 const STATIC_STARTUPS = [
@@ -42,7 +42,7 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
 // --- 4. APP PRINCIPALE ---
 export default function App() {
   const [step, setStep] = useState('login'); 
-  const [user, setUser] = useState({ firstName: '', lastName: '' });
+  const [user, setUser] = useState({ firstName: '', lastName: '' }); // Nettoyé
   const [swipeDirection, setSwipeDirection] = useState(null); 
   
   const [selectedStartups, setSelectedStartups] = useState([]);
@@ -118,7 +118,6 @@ export default function App() {
     const nameToAdd = nameOverride || currentStartupInput.trim();
     if (nameToAdd) {
       if (!selectedStartups.some(s => s.name === nameToAdd)) {
-        // Ajout de "action" et "customAction" par défaut
         setSelectedStartups([...selectedStartups, { name: nameToAdd, sentiment: '🔥', comment: '', action: "Pas d'action requise", customAction: '' }]);
         setShowSentimentHint(true);
         setTimeout(() => {
@@ -172,6 +171,7 @@ export default function App() {
     const basePayload = {
       firstName: user.firstName,
       lastName: user.lastName,
+      // email supprimé
       userDisplay: `${user.firstName} ${user.lastName}`,
       collaborated: hasCollaborated,
       reason: hasCollaborated ? null : noCollabReason,
@@ -186,7 +186,6 @@ export default function App() {
       if (NOTION_WEBHOOK_URL) {
           if (hasCollaborated && selectedStartups.length > 0) {
               for (const startup of selectedStartups) {
-                  // Construction de l'action finale (gestion du "Autre")
                   const finalAction = startup.action === "Autre" 
                     ? (startup.customAction ? `Autre: ${startup.customAction}` : "Autre") 
                     : startup.action;
@@ -196,7 +195,7 @@ export default function App() {
                       name: startup.name, 
                       sentiment: startup.sentiment,
                       comment: startup.comment,
-                      action: finalAction, // Envoi de l'action
+                      action: finalAction, 
                       startups: [startup] 
                   };
                   await fetch(NOTION_WEBHOOK_URL, {
